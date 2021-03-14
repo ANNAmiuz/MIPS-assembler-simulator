@@ -1,0 +1,28 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+D:/Codes_in _CUHKSZ/cpp/csc3050Pro1/_assembler.cpp
+_assembler.h
+D:/Codes_in _CUHKSZ/cpp/csc3050Pro1/_assembler.h
+
+D:/Codes_in _CUHKSZ/cpp/csc3050Pro1/_assembler.h
+vector
+-
+map
+-
+string
+-
+iostream
+-
+fstream
+-
+sstream
+-
+algorithm
+-
+
