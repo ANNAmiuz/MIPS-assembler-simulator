@@ -22,11 +22,11 @@ void branch(unsigned char *&PC, int16_t offset) {
     PC += off;
 }
 
-void _add(uint32_t *&registers, uint32_t rs, uint32_t rt, uint32_t rd) {
+void _add(uint32_t *&registers, uint32_t rs, uint32_t rt, uint32_t rd, std::ofstream &out) {
     int32_t res = (int32_t) registers[rs] + (int32_t) registers[rt];
     if ((0x80000000 & registers[rs]) != (0x80000000 & res)) {
         if ((0x80000000 & registers[rs]) == (0x80000000 & registers[rt])) {
-            std::cout << "Integer_Overflow";
+            out << "Integer_Overflow";
             std::exit(EXIT_FAILURE);
         }
     }
@@ -37,16 +37,15 @@ void _addu(uint32_t *&registers, uint32_t rs, uint32_t rt, uint32_t rd) {
     registers[rd] = registers[rs] + registers[rt];
 }
 
-void _addi(uint32_t *&registers, uint32_t rs, uint32_t rt, int16_t i) {
+void _addi(uint32_t *&registers, uint32_t rs, uint32_t rt, int16_t i, std::ofstream &out) {
     //std::cout<<(int32_t) registers[rs]<<"+" <<(int32_t) i;
     int32_t res = (int32_t) registers[rs] + (int32_t) i;
     if (((0x80000000 & registers[rs]) == (0x80000000 & (int32_t) i)) &&
         ((0x80000000 & registers[rs]) != (0x80000000 & res))) {
-        std::cout << "Integer_Overflow";
+        out << "Integer_Overflow";
         std::exit(EXIT_FAILURE);
     }
     registers[rt] = (uint32_t) res;
-    //std::cout<<"="<<registers[rt]<<std::endl;
 }
 
 void _addiu(uint32_t *&registers, uint32_t rs, uint32_t rt, int16_t i) {
@@ -193,11 +192,11 @@ void _srlv(uint32_t *&registers, uint32_t rs, uint32_t rt, uint32_t rd) {
     return;
 }
 
-void _sub(uint32_t *&registers, uint32_t rs, uint32_t rt, uint32_t rd) {
+void _sub(uint32_t *&registers, uint32_t rs, uint32_t rt, uint32_t rd, std::ofstream &out) {
     int32_t res = (int32_t) registers[rs] - (int32_t) registers[rt];
     if (((0x80000000 & registers[rs]) != (0x80000000 & registers[rt])) &&
         ((0x80000000 & registers[rs]) != (0x80000000 & res))) {
-        std::cout << "Overflow";
+        out << "Overflow";
         std::exit(EXIT_FAILURE);
     }
     registers[rd] = (uint32_t) (res);
@@ -315,7 +314,6 @@ void _j(uint32_t target, unsigned char *&PC, unsigned char *&real_memory) {
 
 void _jal(uint32_t target, unsigned char *&PC, uint32_t *&registers, unsigned char *&real_memory) {
     registers[31] = get_simulated_address_from(PC, real_memory);
-    //std::cout<<"Jal set $ra to be:"<<std::hex<<registers[31]<<std::endl;
     int32_t fake_address =
             ((int32_t) (get_simulated_address_from(PC, real_memory)) & 0xf0000000) + ((int32_t) target << 2);
     PC = get_real_address_from(fake_address, real_memory);
@@ -333,103 +331,98 @@ void _jr(uint32_t *&registers, uint32_t rs, unsigned char *&PC, unsigned char *&
     return;
 }
 
-void _teq(uint32_t *&registers, uint32_t rs, uint32_t rt) {
+void _teq(uint32_t *&registers, uint32_t rs, uint32_t rt, std::ofstream &out) {
     if ((int32_t) registers[rs] == (int32_t) registers[rt]) {
         //throw "rs==rt";
-        std::cout << "rs == rt";
+        out << "rs == rt";
         std::exit(EXIT_FAILURE);
     }
     return;
 }
 
-void _teqi(uint32_t *&registers, uint32_t rs, int16_t i) {
+void _teqi(uint32_t *&registers, uint32_t rs, int16_t i, std::ofstream &out) {
     if ((int32_t) registers[rs] == (int32_t) i) {
         //throw "rs==immediate";
-        std::cout << "rs == immediate";
+        out << "rs == immediate";
         std::exit(EXIT_FAILURE);
     }
     return;
 }
 
-void _tne(uint32_t *&registers, uint32_t rs, uint32_t rt) {
+void _tne(uint32_t *&registers, uint32_t rs, uint32_t rt, std::ofstream &out) {
     if (registers[rs] != registers[rt]) {
         //throw "rs!=rt";
-        std::cout << "rs != rt";
+        out << "rs != rt";
         std::exit(EXIT_FAILURE);
     }
 }
 
-void _tnei(uint32_t *&registers, uint32_t rs, int16_t i) {
+void _tnei(uint32_t *&registers, uint32_t rs, int16_t i, std::ofstream &out) {
     if ((int32_t) registers[rs] != (int32_t) i) {
         //throw "NOT EQUAL";
-        std::cout << "rs != immediate";
+        out << "rs != immediate";
         std::exit(EXIT_FAILURE);
     }
 }
 
-void _tge(uint32_t *&registers, uint32_t rs, uint32_t rt) {
+void _tge(uint32_t *&registers, uint32_t rs, uint32_t rt, std::ofstream &out) {
     if ((int32_t) registers[rs] >= (int32_t) registers[rt]) {
         //throw "GREATER / EQUAL";
-        std::cout << "rs >= rt";
+        out << "rs >= rt";
         std::exit(EXIT_FAILURE);
     }
 }
 
-void _tgeu(uint32_t *&registers, uint32_t rs, uint32_t rt) {
+void _tgeu(uint32_t *&registers, uint32_t rs, uint32_t rt, std::ofstream &out) {
     if (registers[rs] >= registers[rt]) {
-        //throw "GREATER / EQUAL";
-        std::cout << "rs >= rt";
+        out << "rs >= rt";
         std::exit(EXIT_FAILURE);
     }
 
 }
 
-void _tgei(uint32_t *&registers, uint32_t rs, int16_t i) {
+void _tgei(uint32_t *&registers, uint32_t rs, int16_t i, std::ofstream &out) {
     if ((int32_t) registers[rs] >= (int32_t) i) {
         //throw "GREATER / EQUAL";
-        std::cout << "rs >= immediate";
+        out << "rs >= immediate";
         std::exit(EXIT_FAILURE);
     }
     return;
 }
 
-void _tgeiu(uint32_t *&registers, uint32_t rs, int16_t i) {
+void _tgeiu(uint32_t *&registers, uint32_t rs, int16_t i, std::ofstream &out) {
     if (registers[rs] >= (uint32_t) ((int32_t) i)) {
         //throw "GREATER / EQUAL";
-        std::cout << "rs >= immediate";
+        out << "rs >= immediate";
         std::exit(EXIT_FAILURE);
     }
     return;
 }
 
-void _tlt(uint32_t *&registers, uint32_t rs, uint32_t rt) {
+void _tlt(uint32_t *&registers, uint32_t rs, uint32_t rt, std::ofstream &out) {
     if ((int32_t) registers[rs] < (int32_t) registers[rt]) {
-        //throw "LESS THAN";
-        std::cout << "rs < rt";
+        out << "rs < rt";
         std::exit(EXIT_FAILURE);
     }
 }
 
-void _tltu(uint32_t *&registers, uint32_t rs, uint32_t rt) {
+void _tltu(uint32_t *&registers, uint32_t rs, uint32_t rt, std::ofstream &out) {
     if (registers[rs] < registers[rt]) {
-        //throw "LESS THAN";
-        std::cout << "rs < rt";
+        out << "rs < rt";
         std::exit(EXIT_FAILURE);
     }
 }
 
-void _tlti(uint32_t *&registers, uint32_t rs, int16_t i) {
+void _tlti(uint32_t *&registers, uint32_t rs, int16_t i, std::ofstream &out) {
     if ((int32_t) (registers[rs]) < (int32_t) i) {
-        //throw "LESS THAN";
-        std::cout << "rs < immediate";
+        out << "rs < immediate";
         std::exit(EXIT_FAILURE);
     }
 }
 
-void _tltiu(uint32_t *&registers, uint32_t rs, int16_t i) {
+void _tltiu(uint32_t *&registers, uint32_t rs, int16_t i, std::ofstream &out) {
     if ((uint32_t) (registers[rs]) < (uint32_t) ((int32_t) i)) {
-        //throw "LESS THAN";
-        std::cout << "rs < immediate";
+        out << "rs < immediate";
         std::exit(EXIT_FAILURE);
     }
     return;

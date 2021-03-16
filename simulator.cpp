@@ -167,7 +167,7 @@ void perform_code(uint32_t *&registers, unsigned char *&PC, unsigned char *&real
                                 _clz(registers, cur.rs, cur.rd);
                                 break;
                             case 0:
-                                _add(registers, cur.rs, cur.rt, cur.rd);
+                                _add(registers, cur.rs, cur.rt, cur.rd,output);
                                 break;
                         }
                         break;
@@ -259,7 +259,7 @@ void perform_code(uint32_t *&registers, unsigned char *&PC, unsigned char *&real
                         _srlv(registers, cur.rs, cur.rt, cur.rd);
                         break;
                     case 0x22:
-                        _sub(registers, cur.rs, cur.rt, cur.rd);
+                        _sub(registers, cur.rs, cur.rt, cur.rd,output);
                         break;
                     case 0x23:
                         _subu(registers, cur.rs, cur.rt, cur.rd);
@@ -280,22 +280,22 @@ void perform_code(uint32_t *&registers, unsigned char *&PC, unsigned char *&real
                         _jr(registers, cur.rs, PC, real_mem);
                         break;
                     case 0x34:
-                        _teq(registers, cur.rs, cur.rt);
+                        _teq(registers, cur.rs, cur.rt,output);
                         break;
                     case 0x36:
-                        _tne(registers, cur.rs, cur.rt);
+                        _tne(registers, cur.rs, cur.rt,output);
                         break;
                     case 0x30:
-                        _tge(registers, cur.rs, cur.rt);
+                        _tge(registers, cur.rs, cur.rt,output);
                         break;
                     case 0x31:
-                        _tgeu(registers, cur.rs, cur.rt);
+                        _tgeu(registers, cur.rs, cur.rt,output);
                         break;
                     case 0x32:
-                        _tlt(registers, cur.rs, cur.rt);
+                        _tlt(registers, cur.rs, cur.rt,output);
                         break;
                     case 0x33:
-                        _tltu(registers, cur.rs, cur.rt);
+                        _tltu(registers, cur.rs, cur.rt,output);
                         break;
                     case 0x10:
                         _mfhi(registers, cur.rd);
@@ -316,7 +316,7 @@ void perform_code(uint32_t *&registers, unsigned char *&PC, unsigned char *&real
             case 1:
                 switch (cur.op) {
                     case 8:
-                        _addi(registers, cur.rs, cur.rt, cur.imme);
+                        _addi(registers, cur.rs, cur.rt, cur.imme,output);
                         break;
                     case 9:
                         _addiu(registers, cur.rs, cur.rt, cur.imme);
@@ -357,25 +357,23 @@ void perform_code(uint32_t *&registers, unsigned char *&PC, unsigned char *&real
                                 _bltz(registers, cur.rs, (int16_t) cur.imme, PC);
                                 break;
                             case 0xc:
-                                _teqi(registers, cur.rs, cur.imme);
+                                _teqi(registers, cur.rs, cur.imme,output);
                                 break;
                             case 0xe:
-                                _tnei(registers, cur.rs, cur.imme);
+                                _tnei(registers, cur.rs, cur.imme,output);
                                 break;
                             case 8:
-                                _tgei(registers, cur.rs, cur.imme);
+                                _tgei(registers, cur.rs, cur.imme,output);
                                 break;
                             case 9:
-                                _tgeiu(registers, cur.rs, cur.imme);
+                                _tgeiu(registers, cur.rs, cur.imme,output);
                                 break;
                             case 0xa:
-                                _tlti(registers, cur.rs, cur.imme);
+                                _tlti(registers, cur.rs, cur.imme,output);
                                 break;
                             case 0xb:
-                                _tltiu(registers, cur.rs, cur.imme);
+                                _tltiu(registers, cur.rs, cur.imme,output);
                                 break;
-
-
                         }
                         break;
                     case 7:
