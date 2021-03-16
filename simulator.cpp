@@ -3,13 +3,17 @@
 
 void init_space(uint32_t *&registers, unsigned char *&real_memory, std::vector<Instruction *> &MIPS_binary,
                 std::vector<std::string> &MIPS_data,
-                unsigned char *&PC) {
+                unsigned char *&PC, unsigned char *&heap) {
     /*
      * Registers: 0~31 normal MIPS regs
      * Registers: 32: lo
      * Registers: 33: hi
      */
     registers = new uint32_t[34];
+    for (int i = 0; i<34;i++){
+        registers[i] = 0;
+    }
+    heap = new unsigned char;
     registers[0] = 0;
     /*
      * ----------------- 0xA00000   real_memory[0x600000-1] end
@@ -104,6 +108,8 @@ void init_space(uint32_t *&registers, unsigned char *&real_memory, std::vector<I
                 registers[28] += (4 - (registers[28] % 4));
         }
     }
+    heap = get_real_address_from(registers[28], real_memory);
+    registers[28] = 0x500000;
 
 }
 
@@ -145,7 +151,7 @@ void pre_distinguish(unsigned char *PC, _instruction &cur, uint32_t ins) {
 }
 
 void perform_code(uint32_t *&registers, unsigned char *&PC, unsigned char *&real_mem, std::string input_path,
-                  std::string output_path) {
+                  std::string output_path, unsigned char *&heap) {
     _instruction cur;
     std::ifstream input;
     std::ofstream output;
@@ -310,7 +316,7 @@ void perform_code(uint32_t *&registers, unsigned char *&PC, unsigned char *&real
                         _mtlo(registers, cur.rs);
                         break;
                     case 0xc:
-                        _syscall(registers,input,output,real_mem);
+                        _syscall(registers,input,output,real_mem,heap);
                         break;
                 }
             case 1:

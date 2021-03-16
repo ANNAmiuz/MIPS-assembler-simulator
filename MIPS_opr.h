@@ -663,7 +663,7 @@ void _mtlo(uint32_t *&registers, uint32_t rs) {
     return;
 }
 
-void _syscall(uint32_t *&registers, std::ifstream &input, std::ofstream &output, unsigned char * real_mem){
+void _syscall(uint32_t *&registers, std::ifstream &input, std::ofstream &output, unsigned char * real_mem, unsigned char * &heap){
     switch (registers[2]) {
         case 1: {
             output << (int32_t) registers[4];
@@ -708,8 +708,8 @@ void _syscall(uint32_t *&registers, std::ifstream &input, std::ofstream &output,
         }
         case 9: {
             uint32_t num_bytes = registers[4];
-            registers[2] = registers[28];
-            registers[28] = registers[28] + num_bytes;
+            registers[2] = get_simulated_address_from(heap, real_mem);
+            heap += num_bytes;
             break;
         }
         case 10: {

@@ -29,7 +29,7 @@
 */
 void init_space(uint32_t *&registers, unsigned char *&real_memory, std::vector<Instruction *> &MIPS_binary,
                 std::vector<std::string> &MIPS_data,
-                unsigned char *&PC);
+                unsigned char *&PC, unsigned char *&heap);
 
 struct _instruction {
     uint8_t op;
@@ -48,7 +48,7 @@ void pre_distinguish(unsigned char *PC, _instruction &cur, uint32_t ins);
 
 //actual perform of MIPS codes
 void perform_code(uint32_t *&registers, unsigned char *&PC, unsigned char *&real_mem, std::string
-input_path, std::string output_path);
+input_path, std::string output_path, unsigned char *&heap);
 
 //deal with \" \' \t....in the input string
 std::string string_clear(std::string str);
