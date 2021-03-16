@@ -1,5 +1,3 @@
-#define LL long long
-
 #include "_assembler.h"
 
 bool is_alldigit(const std::string &str) {

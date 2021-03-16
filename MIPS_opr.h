@@ -670,5 +670,104 @@ void _mtlo(uint32_t *&registers, uint32_t rs) {
     return;
 }
 
+void _syscall(uint32_t *&registers, std::ifstream &input, std::ofstream &output, unsigned char * real_mem){
+    switch (registers[2]) {
+        case 1: {
+            output << (int32_t) registers[4];
+            output.flush();
+            break;
+        }
+        case 4: {
+            uint32_t cur = registers[4];
+            while (true) {
+                if (*get_real_address_from(cur, real_mem) == '\0') {
+                    break;
+                }
+                output << *get_real_address_from(cur, real_mem);
+                output.flush();
+                cur += 1;
+            }
+            break;
+        }
+        case 5: {
+            std::string res;
+            std::getline(input, res);
+            registers[2] = (uint32_t) (std::stoi(res, nullptr, 0));
+            break;
+        }
+        case 8: {
+            uint32_t num_bytes = registers[5];
+            unsigned char *cur = get_real_address_from(registers[4], real_mem);
+            if (num_bytes < 1) break;
+            else if (num_bytes == 1) {
+                *cur = 0x20;
+                break;
+            } else {
+                std::string res;
+                std::getline(input, res);
+                for (int i = 0; i < num_bytes - 1; i++) {
+                    *cur = res[i];
+                    cur += 1;
+                }
+                *cur = 0x20;
+                break;
+            }
+        }
+        case 9: {
+            uint32_t num_bytes = registers[4];
+            registers[2] = registers[28];
+            registers[28] = registers[28] + num_bytes;
+            break;
+        }
+        case 10: {
+            std::exit(EXIT_SUCCESS);
+        }
+        case 11: {
+            output << (unsigned char) (registers[4] & 0xff);
+            break;
+        }
+        case 12: {
+            std::string res;
+            std::getline(input, res);
+            if (is_alldigit(res)) {
+                registers[2] = std::stoi(res, nullptr, 0);
+                break;
+            } else {
+                registers[2] = (unsigned char) res[0];
+                break;
+            }
+        }
+            //where is $a2 used?
+        case 13: {
+            unsigned char *cur = get_real_address_from(registers[4], real_mem);
+            char* filename;
+            while (true) {
+                if (*cur == '\0') {
+                    break;
+                } else {
+                    filename += *cur;
+                }
+            }
+            registers[2] = open(filename,registers[5],registers[6]);
+            break;
+        }
+        case 14: {
+            registers[2] = read(registers[4],get_real_address_from(registers[5],real_mem),registers[6]);
+            break;
+        }
+        case 15: {
+            registers[2]=write(registers[4],get_real_address_from(registers[5],real_mem),registers[6]);
+            break;
+        }
+        case 16: {
+            close((int32_t) registers[4]);
+            break;
+        }
+        case 17: {
+            _exit((int32_t) registers[4]);
+            break;
+        };
+    }
+}
 
 #endif //CSC3050PRO1_MIPS_OPR_H
