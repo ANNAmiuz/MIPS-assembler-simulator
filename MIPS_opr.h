@@ -730,7 +730,6 @@ void _syscall(uint32_t *&registers, std::ifstream &input, std::ofstream &output,
                 break;
             }
         }
-            //where is $a2 used?
         case 13: {
             unsigned char *cur = get_real_address_from(registers[4], real_mem);
             char* filename;
