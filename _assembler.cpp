@@ -44,7 +44,7 @@ std::string ito_binary(int num, int digit) {
 void reg_mapping(std::map<std::string, uint32_t> &reg_map) {
     reg_map["$zero"] = 0;
     reg_map["$at"] = 1;
-    reg_map["$vo"] = 2;
+    reg_map["$v0"] = 2;
     reg_map["$v1"] = 3;
     reg_map["$a0"] = 4;
     reg_map["$a1"] = 5;
@@ -58,16 +58,16 @@ void reg_mapping(std::map<std::string, uint32_t> &reg_map) {
     reg_map["$t5"] = 13;
     reg_map["$t6"] = 14;
     reg_map["$t7"] = 15;
-    reg_map["$t8"] = 16;
-    reg_map["$t9"] = 17;
-    reg_map["$s0"] = 18;
-    reg_map["$s1"] = 19;
-    reg_map["$s2"] = 20;
-    reg_map["$s3"] = 21;
-    reg_map["$s4"] = 22;
-    reg_map["$s5"] = 23;
-    reg_map["$s6"] = 24;
-    reg_map["$s7"] = 25;
+    reg_map["$t8"] = 24;
+    reg_map["$t9"] = 25;
+    reg_map["$s0"] = 16;
+    reg_map["$s1"] = 17;
+    reg_map["$s2"] = 18;
+    reg_map["$s3"] = 19;
+    reg_map["$s4"] = 20;
+    reg_map["$s5"] = 21;
+    reg_map["$s6"] = 22;
+    reg_map["$s7"] = 23;
     reg_map["$k0"] = 26;
     reg_map["$k1"] = 27;
     reg_map["$gp"] = 28;
@@ -161,9 +161,9 @@ void opr_mapping(std::map<std::string, Operation> &opr) {
 void scan_process(std::map<std::string, Operation> opr_map, std::map<std::string, uint32_t> reg_map,
                   std::map<std::string, unsigned int> &symbol_table, std::vector<Instruction *> &MIPS_binary,
                   std::vector<std::string> &MIPS_data,
-                  uint32_t base_address) {
+                  uint32_t base_address, std::string _asm) {
     std::ifstream infile;
-    infile.open("a-plus-b.asm");
+    infile.open(_asm);
     std::vector<std::string> MIPS_text;
     std::string current;
     std::string symbol;
@@ -174,8 +174,8 @@ void scan_process(std::map<std::string, Operation> opr_map, std::map<std::string
     //store the instruction into 2 vector: MIPS data & text
     //maintain the symbol table
     while (getline(infile, current)) {
-        if (current.find("#") != 0)
-            current.erase(current.find("#"), current.length()+1);
+        if (current.find("#") != std::string::npos)
+            current.erase(current.find("#"), current.length() + 1);
         if (!current.empty()) {
             if (current == ".data") {
                 data_flag = 1;
@@ -190,21 +190,26 @@ void scan_process(std::map<std::string, Operation> opr_map, std::map<std::string
                 MIPS_data.push_back(current);
                 continue;
             }
-            if (text_flag == 1 && data_flag == 0 && current.find(':')) {
-                symbol = current.substr(current.find_first_not_of(" "), current.find(":"));
+            if (text_flag == 1 && data_flag == 0 && current.find(':') != std::string::npos) {
+                symbol = current.substr(current.find_first_not_of(" "),
+                                         current.find(":")-current.find_first_not_of(" "));
                 current.erase(0, current.find(":") + 1);
+                current.erase(0,current.find_first_not_of(' '));
                 if (current.empty()) continue;
             }
             if (text_flag == 1 && data_flag == 0) {
                 MIPS_text.push_back(current);
                 if (!symbol.empty()) {
-                    symbol_table[symbol] = MIPS_text.size();
+                    symbol_table[symbol] = MIPS_text.size()-1;
                     symbol = "";
                 }
             }
         }
     }
-    if (!symbol.empty()) symbol_table[symbol] = 0;
+    //
+    //for(std::map<std::string, unsigned int>::iterator iter = symbol_table.begin(); iter != symbol_table.end(); iter++) {
+        //std::cout << iter->first << " : " << iter->second << std::endl;
+    //}
     //read the 2nd time from the vector
     for (int i = 0; i < MIPS_text.size(); i++) {
         translate(MIPS_text[i], i, opr_map, reg_map, MIPS_binary, symbol_table, base_address);
@@ -215,798 +220,826 @@ void scan_process(std::map<std::string, Operation> opr_map, std::map<std::string
 void translate(std::string instruction, int PC, std::map<std::string, Operation> opr_map,
                std::map<std::string, uint32_t> reg_map, std::vector<Instruction *> &MIPS_binary,
                std::map<std::string, unsigned int> symbol_table, int base_address) {
-    std::vector<std::string> pieces = split(instruction, ' ');
-    Instruction cur;
+    //a
+    //std::cout << instruction << std::endl;
+    std::vector<std::string> pieces = tokenizer(instruction);
+    //a
+    //std::cout << PC;
+    //a
+    //for (int i = 0; i < pieces.size(); i++) {
+        //std::cout << pieces[i] << " ";
+    //}
+    //a
+    //std::cout << std::endl;
+    //Instruction cur;
+    Instruction *cur = new Instruction;
+    if (pieces.empty()) return;
     switch (opr_map[pieces[0]]) {
         case Add:
-            cur.rs = reg_map[pieces[2]];
-            cur.rt = reg_map[pieces[3]];
-            cur.rd = reg_map[pieces[1]];
-            cur.shamt = 0;
-            cur.funct = 0x20;
-            cur.machine_code =
-                    ito_binary(cur.op, 6) + ito_binary(cur.rs, 5) + ito_binary(cur.rt, 5) + ito_binary(cur.rd, 5) +
-                    ito_binary(cur.shamt, 5) +
-                    ito_binary(cur.funct, 6);
+            cur->rs = reg_map[pieces[2]];
+            cur->rt = reg_map[pieces[3]];
+            cur->rd = reg_map[pieces[1]];
+            cur->shamt = 0;
+            cur->funct = 0x20;
+            cur->machine_code =
+                    ito_binary(cur->op, 6) + ito_binary(cur->rs, 5) + ito_binary(cur->rt, 5) + ito_binary(cur->rd, 5) +
+                    ito_binary(cur->shamt, 5) +
+                    ito_binary(cur->funct, 6);
             break;
         case Addu:
-            cur.rs = reg_map[pieces[2]];
-            cur.rt = reg_map[pieces[3]];
-            cur.rd = reg_map[pieces[1]];
-            cur.shamt = 0;
-            cur.funct = 0x21;
-            cur.machine_code =
-                    ito_binary(cur.op, 6) + ito_binary(cur.rs, 5) + ito_binary(cur.rt, 5) + ito_binary(cur.rd, 5) +
-                    ito_binary(cur.shamt, 5) +
-                    ito_binary(cur.funct, 6);
+            cur->rs = reg_map[pieces[2]];
+            cur->rt = reg_map[pieces[3]];
+            cur->rd = reg_map[pieces[1]];
+            cur->shamt = 0;
+            cur->funct = 0x21;
+            cur->machine_code =
+                    ito_binary(cur->op, 6) + ito_binary(cur->rs, 5) + ito_binary(cur->rt, 5) + ito_binary(cur->rd, 5) +
+                    ito_binary(cur->shamt, 5) +
+                    ito_binary(cur->funct, 6);
             break;
         case Addi:
-            cur.op = 8;
-            cur.rs = reg_map[pieces[2]];
-            cur.rt = reg_map[pieces[1]];
-            cur.imme = std::stoi(pieces[3]);
-            cur.machine_code =
-                    ito_binary(cur.op, 6) + ito_binary(cur.rs, 5) + ito_binary(cur.rt, 5) + ito_binary(cur.imme, 16);
+            cur->op = 8;
+            cur->rs = reg_map[pieces[2]];
+            cur->rt = reg_map[pieces[1]];
+            cur->imme = std::stoi(pieces[3]);
+            cur->machine_code =
+                    ito_binary(cur->op, 6) + ito_binary(cur->rs, 5) + ito_binary(cur->rt, 5) +
+                    ito_binary(cur->imme, 16);
             break;
         case Addiu:
-            cur.op = 9;
-            cur.rs = reg_map[pieces[2]];
-            cur.rt = reg_map[pieces[1]];
-            cur.imme = std::stoi(pieces[3]);
-            cur.machine_code =
-                    ito_binary(cur.op, 6) + ito_binary(cur.rs, 5) + ito_binary(cur.rt, 5) + ito_binary(cur.imme, 16);
+            cur->op = 9;
+            cur->rs = reg_map[pieces[2]];
+            cur->rt = reg_map[pieces[1]];
+            cur->imme = std::stoi(pieces[3]);
+            cur->machine_code =
+                    ito_binary(cur->op, 6) + ito_binary(cur->rs, 5) + ito_binary(cur->rt, 5) +
+                    ito_binary(cur->imme, 16);
             break;
         case And:
-            cur.rs = reg_map[pieces[2]];
-            cur.rt = reg_map[pieces[3]];
-            cur.rd = reg_map[pieces[1]];
-            cur.shamt = 0;
-            cur.funct = 0x24;
-            cur.machine_code =
-                    ito_binary(cur.op, 6) + ito_binary(cur.rs, 5) + ito_binary(cur.rt, 5) + ito_binary(cur.rd, 5) +
-                    ito_binary(cur.shamt, 5) +
-                    ito_binary(cur.funct, 6);
+            cur->rs = reg_map[pieces[2]];
+            cur->rt = reg_map[pieces[3]];
+            cur->rd = reg_map[pieces[1]];
+            cur->shamt = 0;
+            cur->funct = 0x24;
+            cur->machine_code =
+                    ito_binary(cur->op, 6) + ito_binary(cur->rs, 5) + ito_binary(cur->rt, 5) + ito_binary(cur->rd, 5) +
+                    ito_binary(cur->shamt, 5) +
+                    ito_binary(cur->funct, 6);
             break;
         case Andi:
 
-            cur.op = 0xc;
-            cur.rs = reg_map[pieces[2]];
-            cur.rt = reg_map[pieces[1]];
-            cur.imme = std::stoi(pieces[3]);
-            cur.machine_code =
-                    ito_binary(cur.op, 6) + ito_binary(cur.rs, 5) + ito_binary(cur.rt, 5) + ito_binary(cur.imme, 16);
+            cur->op = 0xc;
+            cur->rs = reg_map[pieces[2]];
+            cur->rt = reg_map[pieces[1]];
+            cur->imme = std::stoi(pieces[3]);
+            cur->machine_code =
+                    ito_binary(cur->op, 6) + ito_binary(cur->rs, 5) + ito_binary(cur->rt, 5) +
+                    ito_binary(cur->imme, 16);
             break;
         case Clo:
-            cur.op = 0x1c;
-            cur.rs = reg_map[pieces[2]];
-            cur.rd = reg_map[pieces[1]];
-            cur.shamt = 0;
-            cur.funct = 0x21;
-            cur.machine_code = ito_binary(cur.op, 6) + ito_binary(cur.rs, 5) + "00000" + ito_binary(cur.rd, 5) +
-                               ito_binary(cur.shamt, 5) +
-                               ito_binary(cur.funct, 6);
+            cur->op = 0x1c;
+            cur->rs = reg_map[pieces[2]];
+            cur->rd = reg_map[pieces[1]];
+            cur->shamt = 0;
+            cur->funct = 0x21;
+            cur->machine_code = ito_binary(cur->op, 6) + ito_binary(cur->rs, 5) + "00000" + ito_binary(cur->rd, 5) +
+                                ito_binary(cur->shamt, 5) +
+                                ito_binary(cur->funct, 6);
             break;
         case Clz:
-            cur.op = 0x1c;
-            cur.rs = reg_map[pieces[2]];
-            cur.rd = reg_map[pieces[1]];
-            cur.shamt = 0;
-            cur.funct = 0x20;
-            cur.machine_code = ito_binary(cur.op, 6) + ito_binary(cur.rs, 5) + "00000" + ito_binary(cur.rd, 5) +
-                               ito_binary(cur.shamt, 5) +
-                               ito_binary(cur.funct, 6);
+            cur->op = 0x1c;
+            cur->rs = reg_map[pieces[2]];
+            cur->rd = reg_map[pieces[1]];
+            cur->shamt = 0;
+            cur->funct = 0x20;
+            cur->machine_code = ito_binary(cur->op, 6) + ito_binary(cur->rs, 5) + "00000" + ito_binary(cur->rd, 5) +
+                                ito_binary(cur->shamt, 5) +
+                                ito_binary(cur->funct, 6);
             break;
         case Div:
-            cur.rs = reg_map[pieces[1]];
-            cur.rt = reg_map[pieces[2]];
-            cur.funct = 0x1a;
-            cur.machine_code =
-                    ito_binary(cur.op, 6) + ito_binary(cur.rs, 5) + ito_binary(cur.rt, 5) + "0000000000" +
-                    ito_binary(cur.funct, 6);
+            cur->rs = reg_map[pieces[1]];
+            cur->rt = reg_map[pieces[2]];
+            cur->funct = 0x1a;
+            cur->machine_code =
+                    ito_binary(cur->op, 6) + ito_binary(cur->rs, 5) + ito_binary(cur->rt, 5) + "0000000000" +
+                    ito_binary(cur->funct, 6);
             break;
         case Divu:
-            cur.rs = reg_map[pieces[1]];
-            cur.rt = reg_map[pieces[2]];
-            cur.funct = 0x1b;
-            cur.machine_code =
-                    ito_binary(cur.op, 6) + ito_binary(cur.rs, 5) + ito_binary(cur.rt, 5) + "0000000000" +
-                    ito_binary(cur.funct, 6);
+            cur->rs = reg_map[pieces[1]];
+            cur->rt = reg_map[pieces[2]];
+            cur->funct = 0x1b;
+            cur->machine_code =
+                    ito_binary(cur->op, 6) + ito_binary(cur->rs, 5) + ito_binary(cur->rt, 5) + "0000000000" +
+                    ito_binary(cur->funct, 6);
             break;
         case Mult:
-            cur.rs = reg_map[pieces[1]];
-            cur.rt = reg_map[pieces[2]];
-            cur.funct = 0x18;
-            cur.machine_code =
-                    ito_binary(cur.op, 6) + ito_binary(cur.rs, 5) + ito_binary(cur.rt, 5) + "0000000000" +
-                    ito_binary(cur.funct, 6);
+            cur->rs = reg_map[pieces[1]];
+            cur->rt = reg_map[pieces[2]];
+            cur->funct = 0x18;
+            cur->machine_code =
+                    ito_binary(cur->op, 6) + ito_binary(cur->rs, 5) + ito_binary(cur->rt, 5) + "0000000000" +
+                    ito_binary(cur->funct, 6);
             break;
         case Multu:
-            cur.rs = reg_map[pieces[1]];
-            cur.rt = reg_map[pieces[2]];
-            cur.funct = 0x19;
-            cur.machine_code =
-                    ito_binary(cur.op, 6) + ito_binary(cur.rs, 5) + ito_binary(cur.rt, 5) + "0000000000" +
-                    ito_binary(cur.funct, 6);
+            cur->rs = reg_map[pieces[1]];
+            cur->rt = reg_map[pieces[2]];
+            cur->funct = 0x19;
+            cur->machine_code =
+                    ito_binary(cur->op, 6) + ito_binary(cur->rs, 5) + ito_binary(cur->rt, 5) + "0000000000" +
+                    ito_binary(cur->funct, 6);
             break;
         case Mul:
-            cur.rd = reg_map[pieces[1]];
-            cur.rs = reg_map[pieces[2]];
-            cur.rt = reg_map[pieces[3]];
-            cur.shamt = 0;
-            cur.funct = 0x2;
-            cur.machine_code =
-                    ito_binary(cur.op, 6) + ito_binary(cur.rs, 5) + ito_binary(cur.rt, 5) + ito_binary(cur.rd, 5) +
-                    ito_binary(cur.shamt, 5) +
-                    ito_binary(cur.funct, 6);
+            cur->rd = reg_map[pieces[1]];
+            cur->rs = reg_map[pieces[2]];
+            cur->rt = reg_map[pieces[3]];
+            cur->shamt = 0;
+            cur->funct = 0x2;
+            cur->machine_code =
+                    ito_binary(cur->op, 6) + ito_binary(cur->rs, 5) + ito_binary(cur->rt, 5) + ito_binary(cur->rd, 5) +
+                    ito_binary(cur->shamt, 5) +
+                    ito_binary(cur->funct, 6);
             break;
         case Madd:
-            cur.op = 0x1c;
-            cur.rs = reg_map[pieces[1]];
-            cur.rt = reg_map[pieces[2]];
-            cur.funct = 0;
-            cur.machine_code =
-                    ito_binary(cur.op, 6) + ito_binary(cur.rs, 5) + ito_binary(cur.rt, 5) + "0000000000" +
-                    ito_binary(cur.funct, 6);
+            cur->op = 0x1c;
+            cur->rs = reg_map[pieces[1]];
+            cur->rt = reg_map[pieces[2]];
+            cur->funct = 0;
+            cur->machine_code =
+                    ito_binary(cur->op, 6) + ito_binary(cur->rs, 5) + ito_binary(cur->rt, 5) + "0000000000" +
+                    ito_binary(cur->funct, 6);
             break;
         case Msub:
-            cur.op = 0x1c;
-            cur.rs = reg_map[pieces[1]];
-            cur.rt = reg_map[pieces[2]];
-            cur.funct = 4;
-            cur.machine_code =
-                    ito_binary(cur.op, 6) + ito_binary(cur.rs, 5) + ito_binary(cur.rt, 5) + "0000000000" +
-                    ito_binary(cur.funct, 6);
+            cur->op = 0x1c;
+            cur->rs = reg_map[pieces[1]];
+            cur->rt = reg_map[pieces[2]];
+            cur->funct = 4;
+            cur->machine_code =
+                    ito_binary(cur->op, 6) + ito_binary(cur->rs, 5) + ito_binary(cur->rt, 5) + "0000000000" +
+                    ito_binary(cur->funct, 6);
             break;
         case Maddu:
-            cur.op = 0x1c;
-            cur.rs = reg_map[pieces[1]];
-            cur.rt = reg_map[pieces[2]];
-            cur.funct = 1;
-            cur.machine_code =
-                    ito_binary(cur.op, 6) + ito_binary(cur.rs, 5) + ito_binary(cur.rt, 5) + "0000000000" +
-                    ito_binary(cur.funct, 6);
+            cur->op = 0x1c;
+            cur->rs = reg_map[pieces[1]];
+            cur->rt = reg_map[pieces[2]];
+            cur->funct = 1;
+            cur->machine_code =
+                    ito_binary(cur->op, 6) + ito_binary(cur->rs, 5) + ito_binary(cur->rt, 5) + "0000000000" +
+                    ito_binary(cur->funct, 6);
             break;
         case Msubu:
-            cur.op = 0x1c;
-            cur.rs = reg_map[pieces[1]];
-            cur.rt = reg_map[pieces[2]];
-            cur.funct = 5;
-            cur.machine_code =
-                    ito_binary(cur.op, 6) + ito_binary(cur.rs, 5) + ito_binary(cur.rt, 5) + "0000000000" +
-                    ito_binary(cur.funct, 6);
+            cur->op = 0x1c;
+            cur->rs = reg_map[pieces[1]];
+            cur->rt = reg_map[pieces[2]];
+            cur->funct = 5;
+            cur->machine_code =
+                    ito_binary(cur->op, 6) + ito_binary(cur->rs, 5) + ito_binary(cur->rt, 5) + "0000000000" +
+                    ito_binary(cur->funct, 6);
             break;
         case Nor:
-            cur.rd = reg_map[pieces[1]];
-            cur.rs = reg_map[pieces[2]];
-            cur.rt = reg_map[pieces[3]];
-            cur.shamt = 0;
-            cur.funct = 0x27;
-            cur.machine_code =
-                    ito_binary(cur.op, 6) + ito_binary(cur.rs, 5) + ito_binary(cur.rt, 5) + ito_binary(cur.rd, 5) +
-                    ito_binary(cur.shamt, 5) +
-                    ito_binary(cur.funct, 6);
+            cur->rd = reg_map[pieces[1]];
+            cur->rs = reg_map[pieces[2]];
+            cur->rt = reg_map[pieces[3]];
+            cur->shamt = 0;
+            cur->funct = 0x27;
+            cur->machine_code =
+                    ito_binary(cur->op, 6) + ito_binary(cur->rs, 5) + ito_binary(cur->rt, 5) + ito_binary(cur->rd, 5) +
+                    ito_binary(cur->shamt, 5) +
+                    ito_binary(cur->funct, 6);
             break;
         case Or:
-            cur.rd = reg_map[pieces[1]];
-            cur.rs = reg_map[pieces[2]];
-            cur.rt = reg_map[pieces[3]];
-            cur.shamt = 0;
-            cur.funct = 0x25;
-            cur.machine_code =
-                    ito_binary(cur.op, 6) + ito_binary(cur.rs, 5) + ito_binary(cur.rt, 5) + ito_binary(cur.rd, 5) +
-                    ito_binary(cur.shamt, 5) +
-                    ito_binary(cur.funct, 6);
+            cur->rd = reg_map[pieces[1]];
+            cur->rs = reg_map[pieces[2]];
+            cur->rt = reg_map[pieces[3]];
+            cur->shamt = 0;
+            cur->funct = 0x25;
+            cur->machine_code =
+                    ito_binary(cur->op, 6) + ito_binary(cur->rs, 5) + ito_binary(cur->rt, 5) + ito_binary(cur->rd, 5) +
+                    ito_binary(cur->shamt, 5) +
+                    ito_binary(cur->funct, 6);
             break;
         case Ori:
-            cur.op = 0xd;
-            cur.rt = reg_map[pieces[1]];
-            cur.rs = reg_map[pieces[2]];
-            cur.imme = std::stoi(pieces[3]);
-            cur.machine_code =
-                    ito_binary(cur.op, 6) + ito_binary(cur.rs, 5) + ito_binary(cur.rt, 5) + ito_binary(cur.imme, 16);
+            cur->op = 0xd;
+            cur->rt = reg_map[pieces[1]];
+            cur->rs = reg_map[pieces[2]];
+            cur->imme = std::stoi(pieces[3]);
+            cur->machine_code =
+                    ito_binary(cur->op, 6) + ito_binary(cur->rs, 5) + ito_binary(cur->rt, 5) +
+                    ito_binary(cur->imme, 16);
             break;
         case Sll:
-            cur.rd = reg_map[pieces[1]];
-            cur.rt = reg_map[pieces[2]];
-            cur.shamt = std::stoi(pieces[3]);
-            cur.funct = 0;
-            cur.machine_code =
-                    cur.op + "00000" + ito_binary(cur.rt, 5) + ito_binary(cur.rd, 5) + ito_binary(cur.shamt, 5) +
-                    ito_binary(cur.funct, 6);
+            cur->rd = reg_map[pieces[1]];
+            cur->rt = reg_map[pieces[2]];
+            cur->shamt = std::stoi(pieces[3]);
+            cur->funct = 0;
+            cur->machine_code =
+                    ito_binary(cur->op, 6) + ito_binary(cur->rs, 5) + ito_binary(cur->rt, 5) + ito_binary(cur->rd, 5) +
+                    ito_binary(cur->shamt, 5) +
+                    ito_binary(cur->funct, 6);
             break;
         case Sllv:
-            cur.rd = reg_map[pieces[1]];
-            cur.rs = reg_map[pieces[3]];
-            cur.rt = reg_map[pieces[2]];
-            cur.shamt = 0;
-            cur.funct = 4;
-            cur.machine_code =
-                    ito_binary(cur.op, 6) + ito_binary(cur.rs, 5) + ito_binary(cur.rt, 5) + ito_binary(cur.rd, 5) +
-                    ito_binary(cur.shamt, 5) +
-                    ito_binary(cur.funct, 6);
+            cur->rd = reg_map[pieces[1]];
+            cur->rs = reg_map[pieces[3]];
+            cur->rt = reg_map[pieces[2]];
+            cur->shamt = 0;
+            cur->funct = 4;
+            cur->machine_code =
+                    ito_binary(cur->op, 6) + ito_binary(cur->rs, 5) + ito_binary(cur->rt, 5) + ito_binary(cur->rd, 5) +
+                    ito_binary(cur->shamt, 5) +
+                    ito_binary(cur->funct, 6);
             break;
         case Sra:
-            cur.rd = reg_map[pieces[1]];
-            cur.rt = reg_map[pieces[2]];
-            cur.shamt = std::stoi(pieces[3]);
-            cur.funct = 3;
-            cur.machine_code = ito_binary(cur.op, 6) + "00000" + ito_binary(cur.rt, 5) + ito_binary(cur.rd, 5) +
-                               ito_binary(cur.shamt, 5) +
-                               ito_binary(cur.funct, 6);
+            cur->rd = reg_map[pieces[1]];
+            cur->rt = reg_map[pieces[2]];
+            cur->shamt = std::stoi(pieces[3]);
+            cur->funct = 3;
+            cur->machine_code = ito_binary(cur->op, 6) + "00000" + ito_binary(cur->rt, 5) + ito_binary(cur->rd, 5) +
+                                ito_binary(cur->shamt, 5) +
+                                ito_binary(cur->funct, 6);
             break;
         case Srav:
-            cur.rd = reg_map[pieces[1]];
-            cur.rs = reg_map[pieces[3]];
-            cur.rt = reg_map[pieces[2]];
-            cur.shamt = 0;
-            cur.funct = 4;
-            cur.machine_code =
-                    ito_binary(cur.op, 6) + ito_binary(cur.rs, 5) + ito_binary(cur.rt, 5) + ito_binary(cur.rd, 5) +
-                    ito_binary(cur.shamt, 5) +
-                    ito_binary(cur.funct, 6);
+            cur->rd = reg_map[pieces[1]];
+            cur->rs = reg_map[pieces[3]];
+            cur->rt = reg_map[pieces[2]];
+            cur->shamt = 0;
+            cur->funct = 7;
+            cur->machine_code =
+                    ito_binary(cur->op, 6) + ito_binary(cur->rs, 5) + ito_binary(cur->rt, 5) + ito_binary(cur->rd, 5) +
+                    ito_binary(cur->shamt, 5) +
+                    ito_binary(cur->funct, 6);
             break;
         case Srl:
-            cur.rd = reg_map[pieces[1]];
-            cur.rt = reg_map[pieces[2]];
-            cur.shamt = std::stoi(pieces[3]);
-            cur.funct = 2;
-            cur.machine_code = ito_binary(cur.op, 6) + "00000" + ito_binary(cur.rt, 5) + ito_binary(cur.rd, 5) +
-                               ito_binary(cur.shamt, 5) +
-                               ito_binary(cur.funct, 6);
+            cur->rd = reg_map[pieces[1]];
+            cur->rt = reg_map[pieces[2]];
+            cur->shamt = std::stoi(pieces[3]);
+            cur->funct = 2;
+            cur->machine_code = ito_binary(cur->op, 6) + "00000" + ito_binary(cur->rt, 5) + ito_binary(cur->rd, 5) +
+                                ito_binary(cur->shamt, 5) +
+                                ito_binary(cur->funct, 6);
             break;
         case Srlv:
-            cur.rd = reg_map[pieces[1]];
-            cur.rt = reg_map[pieces[2]];
-            cur.rs = reg_map[pieces[3]];
-            cur.funct = 6;
-            cur.machine_code =
-                    ito_binary(cur.op, 6) + ito_binary(cur.rs, 5) + ito_binary(cur.rt, 5) + ito_binary(cur.rd, 5) +
-                    ito_binary(cur.shamt, 5) +
-                    ito_binary(cur.funct, 6);
+            cur->rd = reg_map[pieces[1]];
+            cur->rt = reg_map[pieces[2]];
+            cur->rs = reg_map[pieces[3]];
+            cur->funct = 6;
+            cur->machine_code =
+                    ito_binary(cur->op, 6) + ito_binary(cur->rs, 5) + ito_binary(cur->rt, 5) + ito_binary(cur->rd, 5) +
+                    ito_binary(cur->shamt, 5) +
+                    ito_binary(cur->funct, 6);
             break;
         case Sub:
-            cur.rd = reg_map[pieces[1]];
-            cur.rt = reg_map[pieces[3]];
-            cur.rs = reg_map[pieces[2]];
-            cur.funct = 0x22;
-            cur.machine_code =
-                    ito_binary(cur.op, 6) + ito_binary(cur.rs, 5) + ito_binary(cur.rt, 5) + ito_binary(cur.rd, 5) +
-                    ito_binary(cur.shamt, 5) +
-                    ito_binary(cur.funct, 6);
+            cur->rd = reg_map[pieces[1]];
+            cur->rt = reg_map[pieces[3]];
+            cur->rs = reg_map[pieces[2]];
+            cur->funct = 0x22;
+            cur->machine_code =
+                    ito_binary(cur->op, 6) + ito_binary(cur->rs, 5) + ito_binary(cur->rt, 5) + ito_binary(cur->rd, 5) +
+                    ito_binary(cur->shamt, 5) +
+                    ito_binary(cur->funct, 6);
             break;
         case Subu:
-            cur.rd = reg_map[pieces[1]];
-            cur.rt = reg_map[pieces[3]];
-            cur.rs = reg_map[pieces[2]];
-            cur.funct = 0x23;
-            cur.machine_code =
-                    ito_binary(cur.op, 6) + ito_binary(cur.rs, 5) + ito_binary(cur.rt, 5) + ito_binary(cur.rd, 5) +
-                    ito_binary(cur.shamt, 5) +
-                    ito_binary(cur.funct, 6);
+            cur->rd = reg_map[pieces[1]];
+            cur->rt = reg_map[pieces[3]];
+            cur->rs = reg_map[pieces[2]];
+            cur->funct = 0x23;
+            cur->machine_code =
+                    ito_binary(cur->op, 6) + ito_binary(cur->rs, 5) + ito_binary(cur->rt, 5) + ito_binary(cur->rd, 5) +
+                    ito_binary(cur->shamt, 5) +
+                    ito_binary(cur->funct, 6);
             break;
         case Xor:
-            cur.rd = reg_map[pieces[1]];
-            cur.rt = reg_map[pieces[3]];
-            cur.rs = reg_map[pieces[2]];
-            cur.funct = 0x26;
-            cur.machine_code =
-                    ito_binary(cur.op, 6) + ito_binary(cur.rs, 5) + ito_binary(cur.rt, 5) + ito_binary(cur.rd, 5) +
-                    ito_binary(cur.shamt, 5) +
-                    ito_binary(cur.funct, 6);
+            cur->rd = reg_map[pieces[1]];
+            cur->rt = reg_map[pieces[3]];
+            cur->rs = reg_map[pieces[2]];
+            cur->funct = 0x26;
+            cur->machine_code =
+                    ito_binary(cur->op, 6) + ito_binary(cur->rs, 5) + ito_binary(cur->rt, 5) + ito_binary(cur->rd, 5) +
+                    ito_binary(cur->shamt, 5) +
+                    ito_binary(cur->funct, 6);
             break;
         case Xori:
-
-            cur.op = 0xe;
-            cur.rt = reg_map[pieces[1]];
-            cur.rs = reg_map[pieces[2]];
-            cur.imme = std::stoi(pieces[3]);
-            cur.machine_code =
-                    ito_binary(cur.op, 6) + ito_binary(cur.rs, 5) + ito_binary(cur.rt, 5) + ito_binary(cur.imme, 16);
+            cur->op = 0xe;
+            cur->rt = reg_map[pieces[1]];
+            cur->rs = reg_map[pieces[2]];
+            cur->imme = std::stoi(pieces[3]);
+            cur->machine_code =
+                    ito_binary(cur->op, 6) + ito_binary(cur->rs, 5) + ito_binary(cur->rt, 5) +
+                    ito_binary(cur->imme, 16);
             break;
         case Lui:
-
-            cur.op = 0xf;
-            cur.rt = reg_map[pieces[1]];
-            cur.imme = std::stoi(pieces[2]);
-            cur.machine_code = ito_binary(cur.op, 6) + "00000" + ito_binary(cur.rt, 5) + ito_binary(cur.imme, 16);
+            cur->op = 0xf;
+            cur->rt = reg_map[pieces[1]];
+            cur->imme = std::stoi(pieces[2]);
+            cur->machine_code = ito_binary(cur->op, 6) + "00000" + ito_binary(cur->rt, 5) + ito_binary(cur->imme, 16);
             break;
         case Slt:
-            cur.rd = reg_map[pieces[1]];
-            cur.rt = reg_map[pieces[3]];
-            cur.rs = reg_map[pieces[2]];
-            cur.funct = 0x2a;
-            cur.machine_code =
-                    ito_binary(cur.op, 6) + ito_binary(cur.rs, 5) + ito_binary(cur.rt, 5) + ito_binary(cur.rd, 5) +
-                    ito_binary(cur.shamt, 5) +
-                    ito_binary(cur.funct, 6);
+            cur->rd = reg_map[pieces[1]];
+            cur->rt = reg_map[pieces[3]];
+            cur->rs = reg_map[pieces[2]];
+            cur->funct = 0x2a;
+            cur->machine_code =
+                    ito_binary(cur->op, 6) + ito_binary(cur->rs, 5) + ito_binary(cur->rt, 5) + ito_binary(cur->rd, 5) +
+                    ito_binary(cur->shamt, 5) +
+                    ito_binary(cur->funct, 6);
             break;
         case Sltu:
-            cur.rd = reg_map[pieces[1]];
-            cur.rt = reg_map[pieces[3]];
-            cur.rs = reg_map[pieces[2]];
-            cur.funct = 0x2b;
-            cur.machine_code =
-                    ito_binary(cur.op, 6) + ito_binary(cur.rs, 5) + ito_binary(cur.rt, 5) + ito_binary(cur.rd, 5) +
-                    ito_binary(cur.shamt, 5) +
-                    ito_binary(cur.funct, 6);
+            cur->rd = reg_map[pieces[1]];
+            cur->rt = reg_map[pieces[3]];
+            cur->rs = reg_map[pieces[2]];
+            cur->funct = 0x2b;
+            cur->machine_code =
+                    ito_binary(cur->op, 6) + ito_binary(cur->rs, 5) + ito_binary(cur->rt, 5) + ito_binary(cur->rd, 5) +
+                    ito_binary(cur->shamt, 5) +
+                    ito_binary(cur->funct, 6);
             break;
         case Slti:
-
-            cur.op = 0xa;
-            cur.rt = reg_map[pieces[1]];
-            cur.rs = reg_map[pieces[2]];
-            cur.imme = std::stoi(pieces[3]);
-            cur.machine_code =
-                    ito_binary(cur.op, 6) + ito_binary(cur.rs, 5) + ito_binary(cur.rt, 5) + ito_binary(cur.imme, 16);
+            cur->op = 0xa;
+            cur->rt = reg_map[pieces[1]];
+            cur->rs = reg_map[pieces[2]];
+            cur->imme = std::stoi(pieces[3]);
+            cur->machine_code =
+                    ito_binary(cur->op, 6) + ito_binary(cur->rs, 5) + ito_binary(cur->rt, 5) +
+                    ito_binary(cur->imme, 16);
             break;
         case Sltiu:
-
-            cur.op = 0xb;
-            cur.rt = reg_map[pieces[1]];
-            cur.rs = reg_map[pieces[2]];
-            cur.imme = std::stoi(pieces[3]);
-            cur.machine_code =
-                    ito_binary(cur.op, 6) + ito_binary(cur.rs, 5) + ito_binary(cur.rt, 5) + ito_binary(cur.imme, 16);
+            cur->op = 0xb;
+            cur->rt = reg_map[pieces[1]];
+            cur->rs = reg_map[pieces[2]];
+            cur->imme = std::stoi(pieces[3]);
+            cur->machine_code =
+                    ito_binary(cur->op, 6) + ito_binary(cur->rs, 5) + ito_binary(cur->rt, 5) +
+                    ito_binary(cur->imme, 16);
             break;
         case Beq:
-
-            cur.op = 4;
-            cur.rt = reg_map[pieces[2]];
-            cur.rs = reg_map[pieces[1]];
-            cur.target = pieces[3];
-            if (is_alldigit(cur.target)) {
-                cur.machine_code = ito_binary(cur.op, 6) + ito_binary(cur.rs, 5) + ito_binary(cur.rt, 5) +
-                                   ito_binary(std::stoi(cur.target, 0, 0), 16);
+            cur->op = 4;
+            cur->rt = reg_map[pieces[2]];
+            cur->rs = reg_map[pieces[1]];
+            cur->target = pieces[3];
+            if (is_alldigit(cur->target)) {
+                cur->machine_code = ito_binary(cur->op, 6) + ito_binary(cur->rs, 5) + ito_binary(cur->rt, 5) +
+                                    ito_binary(std::stoi(cur->target, 0, 0), 16);
             }
-            cur.machine_code = ito_binary(cur.op, 6) + ito_binary(cur.rs, 5) + ito_binary(cur.rt, 5) +
-                               ito_binary(symbol_table[cur.target] - PC - 1, 16);
+            cur->machine_code = ito_binary(cur->op, 6) + ito_binary(cur->rs, 5) + ito_binary(cur->rt, 5) +
+                                ito_binary(symbol_table[cur->target] - PC - 1, 16);
             break;
         case Bgez:
-
-            cur.op = 1;
-            cur.rt = 1;
-            cur.rs = reg_map[pieces[1]];
-            cur.target = pieces[2];
-            if (is_alldigit(cur.target)) {
-                cur.machine_code = ito_binary(cur.op, 6) + ito_binary(cur.rs, 5) + ito_binary(cur.rt, 5) +
-                                   ito_binary(std::stoi(cur.target, 0, 0), 16);
+            cur->op = 1;
+            cur->rt = 1;
+            cur->rs = reg_map[pieces[1]];
+            cur->target = pieces[2];
+            if (is_alldigit(cur->target)) {
+                cur->machine_code = ito_binary(cur->op, 6) + ito_binary(cur->rs, 5) + ito_binary(cur->rt, 5) +
+                                    ito_binary(std::stoi(cur->target, 0, 0), 16);
             }
-            cur.machine_code =
-                    ito_binary(cur.op, 6) + ito_binary(cur.rs, 5) + "00001" +
-                    ito_binary(symbol_table[cur.target] - PC - 1, 16);
+            cur->machine_code =
+                    ito_binary(cur->op, 6) + ito_binary(cur->rs, 5) + "00001" +
+                    ito_binary(symbol_table[cur->target] - PC - 1, 16);
             break;
         case Bgezal:
-
-            cur.op = 1;
-            cur.rt = 0x11;
-            cur.rs = reg_map[pieces[1]];
-            cur.target = pieces[2];
-            if (is_alldigit(cur.target)) {
-                cur.machine_code = ito_binary(cur.op, 6) + ito_binary(cur.rs, 5) + ito_binary(cur.rt, 5) +
-                                   ito_binary(std::stoi(cur.target, 0, 0), 16);
+            cur->op = 1;
+            cur->rt = 0x11;
+            cur->rs = reg_map[pieces[1]];
+            cur->target = pieces[2];
+            if (is_alldigit(cur->target)) {
+                cur->machine_code = ito_binary(cur->op, 6) + ito_binary(cur->rs, 5) + ito_binary(cur->rt, 5) +
+                                    ito_binary(std::stoi(cur->target, 0, 0), 16);
             }
-            cur.machine_code =
-                    ito_binary(cur.op, 6) + ito_binary(cur.rs, 5) + "10001" +
-                    ito_binary(symbol_table[cur.target] - PC - 1, 16);
+            cur->machine_code =
+                    ito_binary(cur->op, 6) + ito_binary(cur->rs, 5) + "10001" +
+                    ito_binary(symbol_table[cur->target] - PC - 1, 16);
             break;
         case Bgtz:
-
-            cur.op = 7;
-            cur.rs = reg_map[pieces[1]];
-            cur.target = pieces[2];
-            if (is_alldigit(cur.target)) {
-                cur.machine_code = ito_binary(cur.op, 6) + ito_binary(cur.rs, 5) + ito_binary(cur.rt, 5) +
-                                   ito_binary(std::stoi(cur.target, 0, 0), 16);
+            cur->op = 7;
+            cur->rs = reg_map[pieces[1]];
+            cur->target = pieces[2];
+            if (is_alldigit(cur->target)) {
+                cur->machine_code = ito_binary(cur->op, 6) + ito_binary(cur->rs, 5) + ito_binary(cur->rt, 5) +
+                                    ito_binary(std::stoi(cur->target, 0, 0), 16);
             }
-            cur.machine_code =
-                    ito_binary(cur.op, 6) + ito_binary(cur.rs, 5) + "00000" +
-                    ito_binary(symbol_table[cur.target], 16);
+            cur->machine_code =
+                    ito_binary(cur->op, 6) + ito_binary(cur->rs, 5) + "00000" +
+                    ito_binary(symbol_table[cur->target]-PC-1, 16);
             break;
         case Blez:
-
-            cur.op = 6;
-            cur.rs = reg_map[pieces[1]];
-            cur.target = pieces[2];
-            if (is_alldigit(cur.target)) {
-                cur.machine_code = ito_binary(cur.op, 6) + ito_binary(cur.rs, 5) + ito_binary(cur.rt, 5) +
-                                   ito_binary(std::stoi(cur.target, 0, 0), 16);
+            cur->op = 6;
+            cur->rs = reg_map[pieces[1]];
+            cur->target = pieces[2];
+            if (is_alldigit(cur->target)) {
+                cur->machine_code = ito_binary(cur->op, 6) + ito_binary(cur->rs, 5) + ito_binary(cur->rt, 5) +
+                                    ito_binary(std::stoi(cur->target, nullptr, 0), 16);
             }
-            cur.machine_code =
-                    ito_binary(cur.op, 6) + ito_binary(cur.rs, 5) + "00000" +
-                    ito_binary(symbol_table[cur.target], 16);
+            cur->machine_code =
+                    ito_binary(cur->op, 6) + ito_binary(cur->rs, 5) + ito_binary(cur->rt,5) +
+                    ito_binary(symbol_table[cur->target]-PC-1, 16);
             break;
         case Bltzal:
-
-            cur.op = 1;
-            cur.rt = 0x10;
-            cur.rs = reg_map[pieces[1]];
-            cur.target = pieces[2];
-            if (is_alldigit(cur.target)) {
-                cur.machine_code = ito_binary(cur.op, 6) + ito_binary(cur.rs, 5) + ito_binary(cur.rt, 5) +
-                                   ito_binary(std::stoi(cur.target, 0, 0), 16);
+            cur->op = 1;
+            cur->rt = 0x10;
+            cur->rs = reg_map[pieces[1]];
+            cur->target = pieces[2];
+            if (is_alldigit(cur->target)) {
+                cur->machine_code = ito_binary(cur->op, 6) + ito_binary(cur->rs, 5) + ito_binary(cur->rt, 5) +
+                                    ito_binary(std::stoi(cur->target, nullptr, 0), 16);
             }
-            cur.machine_code =
-                    ito_binary(cur.op, 6) + ito_binary(cur.rs, 5) + "10000" +
-                    ito_binary(symbol_table[cur.target], 16);
+            cur->machine_code =
+                    ito_binary(cur->op, 6) + ito_binary(cur->rs, 5) + "10000" +
+                    ito_binary(symbol_table[cur->target]-PC-1, 16);
             break;
         case Bltz:
-
-            cur.op = 1;
-            cur.rt = 0;
-            cur.rs = reg_map[pieces[1]];
-            cur.target = pieces[2];
-            if (is_alldigit(cur.target)) {
-                cur.machine_code = ito_binary(cur.op, 6) + ito_binary(cur.rs, 5) + ito_binary(cur.rt, 5) +
-                                   ito_binary(std::stoi(cur.target, 0, 0), 16);
+            cur->op = 1;
+            cur->rt = 0;
+            cur->rs = reg_map[pieces[1]];
+            cur->target = pieces[2];
+            if (is_alldigit(cur->target)) {
+                cur->machine_code = ito_binary(cur->op, 6) + ito_binary(cur->rs, 5) + ito_binary(cur->rt, 5) +
+                                    ito_binary(std::stoi(cur->target, nullptr, 0), 16);
             }
-            cur.machine_code =
-                    ito_binary(cur.op, 6) + ito_binary(cur.rs, 5) + "00000" +
-                    ito_binary(symbol_table[cur.target], 16);
+            cur->machine_code =
+                    ito_binary(cur->op, 6) + ito_binary(cur->rs, 5) + "00000" +
+                    ito_binary(symbol_table[cur->target]-PC-1, 16);
             break;
         case Bne:
-
-            cur.op = 5;
-            cur.rt = reg_map[pieces[2]];
-            cur.rs = reg_map[pieces[1]];
-            cur.target = pieces[3];
-            if (is_alldigit(cur.target)) {
-                cur.machine_code = ito_binary(cur.op, 6) + ito_binary(cur.rs, 5) + ito_binary(cur.rt, 5) +
-                                   ito_binary(std::stoi(cur.target, 0, 0), 16);
+            cur->op = 5;
+            cur->rt = reg_map[pieces[2]];
+            cur->rs = reg_map[pieces[1]];
+            cur->target = pieces[3];
+            if (is_alldigit(cur->target)) {
+                cur->machine_code = ito_binary(cur->op, 6) + ito_binary(cur->rs, 5) + ito_binary(cur->rt, 5) +
+                                    ito_binary(std::stoi(cur->target, nullptr, 0), 16);
             }
-            cur.machine_code = ito_binary(cur.op, 6) + ito_binary(cur.rs, 5) + ito_binary(cur.rt, 5) +
-                               ito_binary(symbol_table[cur.target], 16);
+            cur->machine_code = ito_binary(cur->op, 6) + ito_binary(cur->rs, 5) + ito_binary(cur->rt, 5) +
+                                ito_binary(symbol_table[cur->target] - PC-1, 16);
             break;
             //how to get the 26-bit address
         case J:
-
-            cur.op = 2;
-            cur.target = pieces[1];
-            if (is_alldigit(cur.target)) {
-                cur.machine_code =
-                        ito_binary(cur.op, 6) + ito_binary((std::stoi(cur.target) << 4) >> 6, 26);
+            cur->op = 2;
+            cur->target = pieces[1];
+            if (is_alldigit(cur->target)) {
+                cur->machine_code =
+                        ito_binary(cur->op, 6) + ito_binary((std::stoi(cur->target, nullptr, 0) << 4) >> 6, 26);
             }
-            cur.machine_code =
-                    ito_binary(cur.op, 6) + ito_binary(((4 * symbol_table[cur.target] + base_address) << 4) >> 6, 26);
+            cur->machine_code =
+                    ito_binary(cur->op, 6) + ito_binary(((4 * symbol_table[cur->target] + base_address) << 4) >> 6, 26);
             break;
             //How to get the 26-bit address
         case Jal:
-
-            cur.op = 3;
-            cur.target = pieces[1];
-            if (is_alldigit(cur.target)) {
-                cur.machine_code =
-                        ito_binary(cur.op, 6) + ito_binary((std::stoi(cur.target) << 4) >> 6, 26);
+            cur->op = 3;
+            cur->target = pieces[1];
+            if (is_alldigit(cur->target)) {
+                cur->machine_code =
+                        ito_binary(cur->op, 6) + ito_binary((std::stoi(cur->target, nullptr, 0) << 4) >> 6, 26);
             }
-            cur.machine_code =
-                    ito_binary(cur.op, 6) + ito_binary(((4 * symbol_table[cur.target] + base_address) << 4) >> 6, 26);
+            cur->machine_code =
+                    ito_binary(cur->op, 6) + ito_binary(((4 * symbol_table[cur->target] + base_address) << 4) >> 6, 26);
             break;
         case Jalr:
-            cur.rs = reg_map[pieces[1]];
-            cur.rd = reg_map[pieces[2]];
-            cur.funct = 9;
-            cur.machine_code = ito_binary(cur.op, 6) + ito_binary(cur.rs, 5) + "00000" + ito_binary(cur.rd, 5) +
-                               ito_binary(cur.shamt, 5) +
-                               ito_binary(cur.funct, 6);
+            cur->rs = reg_map[pieces[1]];
+            cur->rd = reg_map[pieces[2]];
+            cur->funct = 9;
+            cur->machine_code = ito_binary(cur->op, 6) + ito_binary(cur->rs, 5) + "00000" + ito_binary(cur->rd, 5) +
+                                ito_binary(cur->shamt, 5) +
+                                ito_binary(cur->funct, 6);
             break;
         case Jr:
-            cur.rs = reg_map[pieces[1]];
-            cur.funct = 8;
-            cur.machine_code =
-                    ito_binary(cur.op, 6) + ito_binary(cur.rs, 5) + "000000000000000" + ito_binary(cur.funct, 6);
+            cur->rs = reg_map[pieces[1]];
+            cur->funct = 8;
+            cur->machine_code =
+                    ito_binary(cur->op, 6) + ito_binary(cur->rs, 5) + "000000000000000" + ito_binary(cur->funct, 6);
             break;
         case Teq:
-            cur.rs = reg_map[pieces[1]];
-            cur.rt = reg_map[pieces[2]];
-            cur.funct = 0x34;
-            cur.machine_code =
-                    ito_binary(cur.op, 6) + ito_binary(cur.rs, 5) + ito_binary(cur.rt, 5) + ito_binary(cur.rd, 5) +
-                    ito_binary(cur.shamt, 5) +
-                    ito_binary(cur.funct, 6);
+            cur->rs = reg_map[pieces[1]];
+            cur->rt = reg_map[pieces[2]];
+            cur->funct = 0x34;
+            cur->machine_code =
+                    ito_binary(cur->op, 6) + ito_binary(cur->rs, 5) + ito_binary(cur->rt, 5) + ito_binary(cur->rd, 5) +
+                    ito_binary(cur->shamt, 5) +
+                    ito_binary(cur->funct, 6);
             break;
         case Teqi:
-
-            cur.op = 1;
-            cur.rt = 0xc;
-            cur.rs = reg_map[pieces[1]];
-            cur.imme = std::stoi(pieces[2]);
-            cur.machine_code =
-                    ito_binary(cur.op, 6) + ito_binary(cur.rs, 5) + ito_binary(cur.rt, 5) + ito_binary(cur.imme, 16);
+            cur->op = 1;
+            cur->rt = 0xc;
+            cur->rs = reg_map[pieces[1]];
+            cur->imme = std::stoi(pieces[2]);
+            cur->machine_code =
+                    ito_binary(cur->op, 6) + ito_binary(cur->rs, 5) + ito_binary(cur->rt, 5) +
+                    ito_binary(cur->imme, 16);
             break;
         case Tne:
-            cur.rs = reg_map[pieces[1]];
-            cur.rt = reg_map[pieces[2]];
-            cur.funct = 0x36;
-            cur.machine_code =
-                    ito_binary(cur.op, 6) + ito_binary(cur.rs, 5) + ito_binary(cur.rt, 5) + ito_binary(cur.rd, 5) +
-                    ito_binary(cur.shamt, 5) +
-                    ito_binary(cur.funct, 6);
+            cur->rs = reg_map[pieces[1]];
+            cur->rt = reg_map[pieces[2]];
+            cur->funct = 0x36;
+            cur->machine_code =
+                    ito_binary(cur->op, 6) + ito_binary(cur->rs, 5) + ito_binary(cur->rt, 5) + ito_binary(cur->rd, 5) +
+                    ito_binary(cur->shamt, 5) +
+                    ito_binary(cur->funct, 6);
             break;
         case Tnei:
-            cur.op = 1;
-            cur.rt = 0xe;
-            cur.rs = reg_map[pieces[1]];
-            cur.imme = std::stoi(pieces[2]);
-            cur.machine_code =
-                    ito_binary(cur.op, 6) + ito_binary(cur.rs, 5) + ito_binary(cur.rt, 5) + ito_binary(cur.imme, 16);
+            cur->op = 1;
+            cur->rt = 0xe;
+            cur->rs = reg_map[pieces[1]];
+            cur->imme = std::stoi(pieces[2]);
+            cur->machine_code =
+                    ito_binary(cur->op, 6) + ito_binary(cur->rs, 5) + ito_binary(cur->rt, 5) +
+                    ito_binary(cur->imme, 16);
             break;
         case Tge:
-            cur.rs = reg_map[pieces[1]];
-            cur.rt = reg_map[pieces[2]];
-            cur.funct = 0x30;
-            cur.machine_code =
-                    ito_binary(cur.op, 6) + ito_binary(cur.rs, 5) + ito_binary(cur.rt, 5) + ito_binary(cur.rd, 5) +
-                    ito_binary(cur.shamt, 5) +
-                    ito_binary(cur.funct, 6);
+            cur->rs = reg_map[pieces[1]];
+            cur->rt = reg_map[pieces[2]];
+            cur->funct = 0x30;
+            cur->machine_code =
+                    ito_binary(cur->op, 6) + ito_binary(cur->rs, 5) + ito_binary(cur->rt, 5) + ito_binary(cur->rd, 5) +
+                    ito_binary(cur->shamt, 5) +
+                    ito_binary(cur->funct, 6);
         case Tgeu:
-            cur.rs = reg_map[pieces[1]];
-            cur.rt = reg_map[pieces[2]];
-            cur.funct = 0x31;
-            cur.machine_code =
-                    ito_binary(cur.op, 6) + ito_binary(cur.rs, 5) + ito_binary(cur.rt, 5) + ito_binary(cur.rd, 5) +
-                    ito_binary(cur.shamt, 5) +
-                    ito_binary(cur.funct, 6);
+            cur->rs = reg_map[pieces[1]];
+            cur->rt = reg_map[pieces[2]];
+            cur->funct = 0x31;
+            cur->machine_code =
+                    ito_binary(cur->op, 6) + ito_binary(cur->rs, 5) + ito_binary(cur->rt, 5) + ito_binary(cur->rd, 5) +
+                    ito_binary(cur->shamt, 5) +
+                    ito_binary(cur->funct, 6);
             break;
         case Tgei:
 
-            cur.op = 1;
-            cur.rt = 8;
-            cur.rs = reg_map[pieces[1]];
-            cur.imme = std::stoi(pieces[2]);
-            cur.machine_code =
-                    ito_binary(cur.op, 6) + ito_binary(cur.rs, 5) + ito_binary(cur.rt, 5) + ito_binary(cur.imme, 16);
+            cur->op = 1;
+            cur->rt = 8;
+            cur->rs = reg_map[pieces[1]];
+            cur->imme = std::stoi(pieces[2]);
+            cur->machine_code =
+                    ito_binary(cur->op, 6) + ito_binary(cur->rs, 5) + ito_binary(cur->rt, 5) +
+                    ito_binary(cur->imme, 16);
             break;
         case Tgeiu:
 
-            cur.op = 1;
-            cur.rt = 9;
-            cur.rs = reg_map[pieces[1]];
-            cur.imme = std::stoi(pieces[2]);
-            cur.machine_code =
-                    ito_binary(cur.op, 6) + ito_binary(cur.rs, 5) + ito_binary(cur.rs, 5) + ito_binary(cur.imme, 16);
+            cur->op = 1;
+            cur->rt = 9;
+            cur->rs = reg_map[pieces[1]];
+            cur->imme = std::stoi(pieces[2]);
+            cur->machine_code =
+                    ito_binary(cur->op, 6) + ito_binary(cur->rs, 5) + ito_binary(cur->rs, 5) +
+                    ito_binary(cur->imme, 16);
             break;
         case Tlt:
-            cur.rs = reg_map[pieces[1]];
-            cur.rt = reg_map[pieces[2]];
-            cur.funct = 0x32;
-            cur.machine_code =
-                    ito_binary(cur.op, 6) + ito_binary(cur.rs, 5) + ito_binary(cur.rt, 5) + ito_binary(cur.rd, 5) +
-                    ito_binary(cur.shamt, 5) +
-                    ito_binary(cur.funct, 6);
+            cur->rs = reg_map[pieces[1]];
+            cur->rt = reg_map[pieces[2]];
+            cur->funct = 0x32;
+            cur->machine_code =
+                    ito_binary(cur->op, 6) + ito_binary(cur->rs, 5) + ito_binary(cur->rt, 5) + ito_binary(cur->rd, 5) +
+                    ito_binary(cur->shamt, 5) +
+                    ito_binary(cur->funct, 6);
             break;
         case Tltu:
-            cur.rs = reg_map[pieces[1]];
-            cur.rt = reg_map[pieces[2]];
-            cur.funct = 0x33;
-            cur.machine_code =
-                    ito_binary(cur.op, 6) + ito_binary(cur.rs, 5) + ito_binary(cur.rt, 5) + ito_binary(cur.rd, 5) +
-                    ito_binary(cur.shamt, 5) +
-                    ito_binary(cur.funct, 6);
+            cur->rs = reg_map[pieces[1]];
+            cur->rt = reg_map[pieces[2]];
+            cur->funct = 0x33;
+            cur->machine_code =
+                    ito_binary(cur->op, 6) + ito_binary(cur->rs, 5) + ito_binary(cur->rt, 5) + ito_binary(cur->rd, 5) +
+                    ito_binary(cur->shamt, 5) +
+                    ito_binary(cur->funct, 6);
             break;
         case Tlti:
 
-            cur.op = 1;
-            cur.rt = 0xa;
-            cur.rs = reg_map[pieces[1]];
-            cur.imme = std::stoi(pieces[2]);
-            cur.machine_code =
-                    ito_binary(cur.op, 6) + ito_binary(cur.rs, 5) + ito_binary(cur.rt, 5) + ito_binary(cur.imme, 16);
+            cur->op = 1;
+            cur->rt = 0xa;
+            cur->rs = reg_map[pieces[1]];
+            cur->imme = std::stoi(pieces[2]);
+            cur->machine_code =
+                    ito_binary(cur->op, 6) + ito_binary(cur->rs, 5) + ito_binary(cur->rt, 5) +
+                    ito_binary(cur->imme, 16);
             break;
         case Tltiu:
 
-            cur.op = 1;
-            cur.rt = 0xb;
-            cur.rs = reg_map[pieces[1]];
-            cur.imme = std::stoi(pieces[2]);
-            cur.machine_code =
-                    ito_binary(cur.op, 6) + ito_binary(cur.rs, 5) + ito_binary(cur.rt, 5) + ito_binary(cur.imme, 16);
+            cur->op = 1;
+            cur->rt = 0xb;
+            cur->rs = reg_map[pieces[1]];
+            cur->imme = std::stoi(pieces[2]);
+            cur->machine_code =
+                    ito_binary(cur->op, 6) + ito_binary(cur->rs, 5) + ito_binary(cur->rt, 5) +
+                    ito_binary(cur->imme, 16);
             break;
             //how to determine the address
         case Lb:
 
-            cur.op = 0x20;
-            cur.rt = reg_map[pieces[1]];
-            cur.target = pieces[2];
-            if (cur.target.substr(0, cur.target.find_first_of("(")) == "") {
-                cur.imme = 0;
-            } else { cur.imme = std::stoi(cur.target.substr(0, cur.target.find_first_of("("))); }
-            cur.rs = reg_map[cur.target.substr(cur.target.find_first_of("(") + 1, cur.target.find_first_of(")"))];
-            cur.machine_code =
-                    ito_binary(cur.op, 6) + ito_binary(cur.rs, 5) + ito_binary(cur.rt, 5) + ito_binary(cur.imme, 16);
+            cur->op = 0x20;
+            cur->rt = reg_map[pieces[1]];
+            cur->target = pieces[2];
+            if (cur->target.substr(0, cur->target.find_first_of("(")) == "") {
+                cur->imme = 0;
+            } else { cur->imme = std::stoi(cur->target.substr(0, cur->target.find_first_of("("))); }
+            cur->rs = reg_map[cur->target.substr(cur->target.find_first_of("(") + 1, 3)];
+            cur->machine_code =
+                    ito_binary(cur->op, 6) + ito_binary(cur->rs, 5) + ito_binary(cur->rt, 5) +
+                    ito_binary(cur->imme, 16);
             break;
         case Lbu:
 
-            cur.op = 0x24;
-            cur.rt = reg_map[pieces[1]];
-            cur.target = pieces[2];
-            if (cur.target.substr(0, cur.target.find_first_of("(")) == "") {
-                cur.imme = 0;
-            } else { cur.imme = std::stoi(cur.target.substr(0, cur.target.find_first_of("("))); }
-            cur.rs = reg_map[cur.target.substr(cur.target.find_first_of("(") + 1, cur.target.find_first_of(")"))];
-            cur.machine_code =
-                    ito_binary(cur.op, 6) + ito_binary(cur.rs, 5) + ito_binary(cur.rt, 5) + ito_binary(cur.imme, 16);
+            cur->op = 0x24;
+            cur->rt = reg_map[pieces[1]];
+            cur->target = pieces[2];
+            if (cur->target.substr(0, cur->target.find_first_of("(")) == "") {
+                cur->imme = 0;
+            } else { cur->imme = std::stoi(cur->target.substr(0, cur->target.find_first_of("("))); }
+            cur->rs = reg_map[cur->target.substr(cur->target.find_first_of("(") + 1, 3)];
+            cur->machine_code =
+                    ito_binary(cur->op, 6) + ito_binary(cur->rs, 5) + ito_binary(cur->rt, 5) +
+                    ito_binary(cur->imme, 16);
             break;
         case Lh:
-
-            cur.op = 0x21;
-            cur.rt = reg_map[pieces[1]];
-            cur.target = pieces[2];
-            if (cur.target.substr(0, cur.target.find_first_of("(")) == "") {
-                cur.imme = 0;
-            } else { cur.imme = std::stoi(cur.target.substr(0, cur.target.find_first_of("("))); }
-            cur.rs = reg_map[cur.target.substr(cur.target.find_first_of("(") + 1, cur.target.find_first_of(")"))];
-            cur.machine_code =
-                    ito_binary(cur.op, 6) + ito_binary(cur.rs, 5) + ito_binary(cur.rt, 5) + ito_binary(cur.imme, 16);
+            cur->op = 0x21;
+            cur->rt = reg_map[pieces[1]];
+            cur->target = pieces[2];
+            if (cur->target.substr(0, cur->target.find_first_of("(")) == "") {
+                cur->imme = 0;
+            } else { cur->imme = std::stoi(cur->target.substr(0, cur->target.find_first_of("("))); }
+            cur->rs = reg_map[cur->target.substr(cur->target.find_first_of("(") + 1, 3)];
+            cur->machine_code =
+                    ito_binary(cur->op, 6) + ito_binary(cur->rs, 5) + ito_binary(cur->rt, 5) +
+                    ito_binary(cur->imme, 16);
             break;
         case Lhu:
-
-            cur.op = 0x25;
-            cur.rt = reg_map[pieces[1]];
-            cur.target = pieces[2];
-            if (cur.target.substr(0, cur.target.find_first_of("(")) == "") {
-                cur.imme = 0;
-            } else { cur.imme = std::stoi(cur.target.substr(0, cur.target.find_first_of("("))); }
-            cur.rs = reg_map[cur.target.substr(cur.target.find_first_of("(") + 1, cur.target.find_first_of(")"))];
-            cur.machine_code =
-                    ito_binary(cur.op, 6) + ito_binary(cur.rs, 5) + ito_binary(cur.rt, 5) + ito_binary(cur.imme, 16);
+            cur->op = 0x25;
+            cur->rt = reg_map[pieces[1]];
+            cur->target = pieces[2];
+            if (cur->target.substr(0, cur->target.find_first_of("(")) == "") {
+                cur->imme = 0;
+            } else { cur->imme = std::stoi(cur->target.substr(0, cur->target.find_first_of("("))); }
+            cur->rs = reg_map[cur->target.substr(cur->target.find_first_of("(") + 1, 3)];
+            cur->machine_code =
+                    ito_binary(cur->op, 6) + ito_binary(cur->rs, 5) + ito_binary(cur->rt, 5) +
+                    ito_binary(cur->imme, 16);
             break;
         case Lw:
-
-            cur.op = 0x23;
-            cur.rt = reg_map[pieces[1]];
-            cur.target = pieces[2];
-            if (cur.target.substr(0, cur.target.find_first_of("(")) == "") {
-                cur.imme = 0;
-            } else { cur.imme = std::stoi(cur.target.substr(0, cur.target.find_first_of("("))); }
-            cur.rs = reg_map[cur.target.substr(cur.target.find_first_of("(") + 1, cur.target.find_first_of(")"))];
-            cur.machine_code =
-                    ito_binary(cur.op, 6) + ito_binary(cur.rs, 5) + ito_binary(cur.rt, 5) + ito_binary(cur.imme, 16);
+            cur->op = 0x23;
+            cur->rt = reg_map[pieces[1]];
+            cur->target = pieces[2];
+            if (cur->target.substr(0, cur->target.find_first_of("(")) == "") {
+                cur->imme = 0;
+            } else { cur->imme = std::stoi(cur->target.substr(0, cur->target.find_first_of("("))); }
+            cur->rs = reg_map[cur->target.substr(cur->target.find_first_of("(") + 1, 3)];
+            cur->machine_code =
+                    ito_binary(cur->op, 6) + ito_binary(cur->rs, 5) + ito_binary(cur->rt, 5) +
+                    ito_binary(cur->imme, 16);
             break;
         case Lwl:
-
-            cur.op = 0x22;
-            cur.rt = reg_map[pieces[1]];
-            cur.target = pieces[2];
-            if (cur.target.substr(0, cur.target.find_first_of("(")) == "") {
-                cur.imme = 0;
-            } else { cur.imme = std::stoi(cur.target.substr(0, cur.target.find_first_of("("))); }
-            cur.rs = reg_map[cur.target.substr(cur.target.find_first_of("(") + 1, cur.target.find_first_of(")"))];
-            cur.machine_code =
-                    ito_binary(cur.op, 6) + ito_binary(cur.rs, 5) + ito_binary(cur.rt, 5) + ito_binary(cur.imme, 16);
+            cur->op = 0x22;
+            cur->rt = reg_map[pieces[1]];
+            cur->target = pieces[2];
+            if (cur->target.substr(0, cur->target.find_first_of("(")) == "") {
+                cur->imme = 0;
+            } else { cur->imme = std::stoi(cur->target.substr(0, cur->target.find_first_of("("))); }
+            cur->rs = reg_map[cur->target.substr(cur->target.find_first_of("(") + 1, 3)];
+            cur->machine_code =
+                    ito_binary(cur->op, 6) + ito_binary(cur->rs, 5) + ito_binary(cur->rt, 5) +
+                    ito_binary(cur->imme, 16);
             break;
         case Lwr:
-
-            cur.op = 0x26;
-            cur.rt = reg_map[pieces[1]];
-            cur.target = pieces[2];
-            if (cur.target.substr(0, cur.target.find_first_of("(")) == "") {
-                cur.imme = 0;
-            } else { cur.imme = std::stoi(cur.target.substr(0, cur.target.find_first_of("("))); }
-            cur.rs = reg_map[cur.target.substr(cur.target.find_first_of("(") + 1, cur.target.find_first_of(")"))];
-            cur.machine_code =
-                    ito_binary(cur.op, 6) + ito_binary(cur.rs, 5) + ito_binary(cur.rt, 5) + ito_binary(cur.imme, 16);
+            cur->op = 0x26;
+            cur->rt = reg_map[pieces[1]];
+            cur->target = pieces[2];
+            if (cur->target.substr(0, cur->target.find_first_of("(")) == "") {
+                cur->imme = 0;
+            } else { cur->imme = std::stoi(cur->target.substr(0, cur->target.find_first_of("("))); }
+            cur->rs = reg_map[cur->target.substr(cur->target.find_first_of("(") + 1, 3)];
+            cur->machine_code =
+                    ito_binary(cur->op, 6) + ito_binary(cur->rs, 5) + ito_binary(cur->rt, 5) +
+                    ito_binary(cur->imme, 16);
             break;
         case Ll:
-
-            cur.op = 0x30;
-            cur.rt = reg_map[pieces[1]];
-            cur.target = pieces[2];
-            if (cur.target.substr(0, cur.target.find_first_of("(")) == "") {
-                cur.imme = 0;
-            } else { cur.imme = std::stoi(cur.target.substr(0, cur.target.find_first_of("("))); }
-            cur.rs = reg_map[cur.target.substr(cur.target.find_first_of("(") + 1, cur.target.find_first_of(")"))];
-            cur.machine_code =
-                    ito_binary(cur.op, 6) + ito_binary(cur.rs, 5) + ito_binary(cur.rt, 5) + ito_binary(cur.imme, 16);
+            cur->op = 0x30;
+            cur->rt = reg_map[pieces[1]];
+            cur->target = pieces[2];
+            if (cur->target.substr(0, cur->target.find_first_of("(")) == "") {
+                cur->imme = 0;
+            } else { cur->imme = std::stoi(cur->target.substr(0, cur->target.find_first_of("("))); }
+            cur->rs = reg_map[cur->target.substr(cur->target.find_first_of("(") + 1, 3)];
+            cur->machine_code =
+                    ito_binary(cur->op, 6) + ito_binary(cur->rs, 5) + ito_binary(cur->rt, 5) +
+                    ito_binary(cur->imme, 16);
             break;
         case Sb:
-
-            cur.op = 0x28;
-            cur.rt = reg_map[pieces[1]];
-            cur.target = pieces[2];
-            if (cur.target.substr(0, cur.target.find_first_of("(")) == "") {
-                cur.imme = 0;
-            } else { cur.imme = std::stoi(cur.target.substr(0, cur.target.find_first_of("("))); }
-            cur.rs = reg_map[cur.target.substr(cur.target.find_first_of("(") + 1, cur.target.find_first_of(")"))];
-            cur.machine_code =
-                    ito_binary(cur.op, 6) + ito_binary(cur.rs, 5) + ito_binary(cur.rt, 5) + ito_binary(cur.imme, 16);
+            cur->op = 0x28;
+            cur->rt = reg_map[pieces[1]];
+            cur->target = pieces[2];
+            if (cur->target.substr(0, cur->target.find_first_of("(")) == "") {
+                cur->imme = 0;
+            } else { cur->imme = std::stoi(cur->target.substr(0, cur->target.find_first_of("("))); }
+            cur->rs = reg_map[cur->target.substr(cur->target.find_first_of("(") + 1, 3)];
+            cur->machine_code =
+                    ito_binary(cur->op, 6) + ito_binary(cur->rs, 5) + ito_binary(cur->rt, 5) +
+                    ito_binary(cur->imme, 16);
             break;
         case Sh:
-
-            cur.op = 0x29;
-            cur.rt = reg_map[pieces[1]];
-            cur.target = pieces[2];
-            if (cur.target.substr(0, cur.target.find_first_of("(")) == "") {
-                cur.imme = 0;
-            } else { cur.imme = std::stoi(cur.target.substr(0, cur.target.find_first_of("("))); }
-            cur.rs = reg_map[cur.target.substr(cur.target.find_first_of("(") + 1, cur.target.find_first_of(")"))];
-            cur.machine_code =
-                    ito_binary(cur.op, 6) + ito_binary(cur.rs, 5) + ito_binary(cur.rt, 5) + ito_binary(cur.imme, 16);
+            cur->op = 0x29;
+            cur->rt = reg_map[pieces[1]];
+            cur->target = pieces[2];
+            if (cur->target.substr(0, cur->target.find_first_of("(")) == "") {
+                cur->imme = 0;
+            } else { cur->imme = std::stoi(cur->target.substr(0, cur->target.find_first_of("("))); }
+            cur->rs = reg_map[cur->target.substr(cur->target.find_first_of("(") + 1, 3)];
+            cur->machine_code =
+                    ito_binary(cur->op, 6) + ito_binary(cur->rs, 5) + ito_binary(cur->rt, 5) +
+                    ito_binary(cur->imme, 16);
             break;
         case Sw:
-
-            cur.op = 0x2b;
-            cur.rt = reg_map[pieces[1]];
-            cur.target = pieces[2];
-            if (cur.target.substr(0, cur.target.find_first_of("(")) == "") {
-                cur.imme = 0;
-            } else { cur.imme = std::stoi(cur.target.substr(0, cur.target.find_first_of("("))); }
-            cur.rs = reg_map[cur.target.substr(cur.target.find_first_of("(") + 1, cur.target.find_first_of(")"))];
-            cur.machine_code =
-                    ito_binary(cur.op, 6) + ito_binary(cur.rs, 5) + ito_binary(cur.rt, 5) + ito_binary(cur.imme, 16);
+            cur->op = 0x2b;
+            cur->rt = reg_map[pieces[1]];
+            cur->target = pieces[2];
+            if (cur->target.substr(0, cur->target.find_first_of("(")) == "") {
+                cur->imme = 0;
+            } else { cur->imme = std::stoi(cur->target.substr(0, cur->target.find_first_of("("))); }
+            cur->rs = reg_map[cur->target.substr(cur->target.find_first_of("(") + 1, 3)];
+            cur->machine_code =
+                    ito_binary(cur->op, 6) + ito_binary(cur->rs, 5) + ito_binary(cur->rt, 5) +
+                    ito_binary(cur->imme, 16);
             break;
         case Swl:
-
-            cur.op = 0x2a;
-            cur.rt = reg_map[pieces[1]];
-            cur.target = pieces[2];
-            if (cur.target.substr(0, cur.target.find_first_of("(")) == "") {
-                cur.imme = 0;
-            } else { cur.imme = std::stoi(cur.target.substr(0, cur.target.find_first_of("("))); }
-            cur.rs = reg_map[cur.target.substr(cur.target.find_first_of("(") + 1, cur.target.find_first_of(")"))];
-            cur.machine_code =
-                    ito_binary(cur.op, 6) + ito_binary(cur.rs, 5) + ito_binary(cur.rt, 5) + ito_binary(cur.imme, 16);
+            cur->op = 0x2a;
+            cur->rt = reg_map[pieces[1]];
+            cur->target = pieces[2];
+            if (cur->target.substr(0, cur->target.find_first_of("(")) == "") {
+                cur->imme = 0;
+            } else { cur->imme = std::stoi(cur->target.substr(0, cur->target.find_first_of("("))); }
+            cur->rs = reg_map[cur->target.substr(cur->target.find_first_of("(") + 1, 3)];
+            cur->machine_code =
+                    ito_binary(cur->op, 6) + ito_binary(cur->rs, 5) + ito_binary(cur->rt, 5) +
+                    ito_binary(cur->imme, 16);
             break;
         case Swr:
-
-            cur.op = 0x2e;
-            cur.rt = reg_map[pieces[1]];
-            cur.target = pieces[2];
-            if (cur.target.substr(0, cur.target.find_first_of("(")) == "") {
-                cur.imme = 0;
-            } else { cur.imme = std::stoi(cur.target.substr(0, cur.target.find_first_of("("))); }
-            cur.rs = reg_map[cur.target.substr(cur.target.find_first_of("(") + 1, cur.target.find_first_of(")"))];
-            cur.machine_code =
-                    ito_binary(cur.op, 6) + ito_binary(cur.rs, 5) + ito_binary(cur.rt, 5) + ito_binary(cur.imme, 16);
+            cur->op = 0x2e;
+            cur->rt = reg_map[pieces[1]];
+            cur->target = pieces[2];
+            if (cur->target.substr(0, cur->target.find_first_of("(")) == "") {
+                cur->imme = 0;
+            } else { cur->imme = std::stoi(cur->target.substr(0, cur->target.find_first_of("("))); }
+            cur->rs = reg_map[cur->target.substr(cur->target.find_first_of("(") + 1, 3)];
+            cur->machine_code =
+                    ito_binary(cur->op, 6) + ito_binary(cur->rs, 5) + ito_binary(cur->rt, 5) +
+                    ito_binary(cur->imme, 16);
             break;
         case Sc:
-
-            cur.op = 0x38;
-            cur.rt = reg_map[pieces[1]];
-            cur.target = pieces[2];
-            if (cur.target.substr(0, cur.target.find_first_of("(")) == "") {
-                cur.imme = 0;
-            } else { cur.imme = std::stoi(cur.target.substr(0, cur.target.find_first_of("("))); }
-            cur.rs = reg_map[cur.target.substr(cur.target.find_first_of("(") + 1, cur.target.find_first_of(")"))];
-            cur.machine_code =
-                    ito_binary(cur.op, 6) + ito_binary(cur.rs, 5) + ito_binary(cur.rt, 5) + ito_binary(cur.imme, 16);
+            cur->op = 0x38;
+            cur->rt = reg_map[pieces[1]];
+            cur->target = pieces[2];
+            if (cur->target.substr(0, cur->target.find_first_of("(")) == "") {
+                cur->imme = 0;
+            } else { cur->imme = std::stoi(cur->target.substr(0, cur->target.find_first_of("("))); }
+            cur->rs = reg_map[cur->target.substr(cur->target.find_first_of("(") + 1, 3)];
+            cur->machine_code =
+                    ito_binary(cur->op, 6) + ito_binary(cur->rs, 5) + ito_binary(cur->rt, 5) +
+                    ito_binary(cur->imme, 16);
             break;
         case Mfhi:
-            cur.rd = reg_map[pieces[1]];
-            cur.funct = 0x10;
-            cur.machine_code =
-                    ito_binary(cur.op, 6) + ito_binary(cur.rs, 5) + ito_binary(cur.rt, 5) + ito_binary(cur.rd, 5) +
-                    ito_binary(cur.shamt, 5) +
-                    ito_binary(cur.funct, 16);
+            cur->rd = reg_map[pieces[1]];
+            cur->funct = 0x10;
+            cur->machine_code =
+                    ito_binary(cur->op, 6) + ito_binary(cur->rs, 5) + ito_binary(cur->rt, 5) + ito_binary(cur->rd, 5) +
+                    ito_binary(cur->shamt, 5) +
+                    ito_binary(cur->funct, 6);
             break;
         case Mflo:
-            cur.rd = reg_map[pieces[1]];
-            cur.funct = 0x12;
-            cur.machine_code =
-                    ito_binary(cur.op, 6) + ito_binary(cur.rs, 5) + ito_binary(cur.rt, 5) + ito_binary(cur.rd, 5) +
-                    ito_binary(cur.shamt, 5) +
-                    ito_binary(cur.funct, 16);
+            cur->rd = reg_map[pieces[1]];
+            cur->funct = 0x12;
+            cur->machine_code =
+                    ito_binary(cur->op, 6) + ito_binary(cur->rs, 5) + ito_binary(cur->rt, 5) + ito_binary(cur->rd, 5) +
+                    ito_binary(cur->shamt, 5) +
+                    ito_binary(cur->funct, 6);
             break;
         case Mthi:
-            cur.rs = reg_map[pieces[1]];
-            cur.funct = 0x11;
-            cur.machine_code =
-                    ito_binary(cur.op, 6) + ito_binary(cur.rs, 5) + ito_binary(cur.rt, 5) + ito_binary(cur.rd, 5) +
-                    ito_binary(cur.shamt, 5) +
-                    ito_binary(cur.funct, 16);
+            cur->rs = reg_map[pieces[1]];
+            cur->funct = 0x11;
+            cur->machine_code =
+                    ito_binary(cur->op, 6) + ito_binary(cur->rs, 5) + ito_binary(cur->rt, 5) + ito_binary(cur->rd, 5) +
+                    ito_binary(cur->shamt, 5) +
+                    ito_binary(cur->funct, 6);
             break;
         case Mtlo:
-            cur.rs = reg_map[pieces[1]];
-            cur.funct = 0x13;
-            cur.machine_code =
-                    ito_binary(cur.op, 6) + ito_binary(cur.rs, 5) + ito_binary(cur.rt, 5) + ito_binary(cur.rd, 5) +
-                    ito_binary(cur.shamt, 5) +
-                    ito_binary(cur.funct, 16);
+            cur->rs = reg_map[pieces[1]];
+            cur->funct = 0x13;
+            cur->machine_code =
+                    ito_binary(cur->op, 6) + ito_binary(cur->rs, 5) + ito_binary(cur->rt, 5) + ito_binary(cur->rd, 5) +
+                    ito_binary(cur->shamt, 5) +
+                    ito_binary(cur->funct, 6);
             break;
         case Syscall:
-            cur.funct = 0xc;
-            ito_binary(cur.op, 6) + ito_binary(cur.rs, 5) + ito_binary(cur.rt, 5) + ito_binary(cur.rd, 5) +
-            ito_binary(cur.shamt, 5) +
-            ito_binary(cur.funct, 16);
+            cur->funct = 0xc;
+            cur->machine_code =
+                    ito_binary(cur->op, 6) + ito_binary(cur->rs, 5) + ito_binary(cur->rt, 5) + ito_binary(cur->rd, 5) +
+                    ito_binary(cur->shamt, 5) +
+                    ito_binary(cur->funct, 6);
             break;
     }
-    MIPS_binary.push_back(&cur);
+    MIPS_binary.push_back(cur);
+
+    //a&s
+    //std::cout << cur->machine_code << std::endl;
+}
+
+
+void test(std::string out, std::vector<Instruction *> &MIPS_binary) {
+    std::fstream infile(out);
+    std::string res;
+    for (int i = 0; i < MIPS_binary.size(); i++) {
+        std::getline(infile, res);
+        if (res != MIPS_binary[i]->machine_code)
+            std::cout << i << std::endl;
+    }
 }

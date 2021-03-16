@@ -6,9 +6,7 @@
 
 #IncludeRegexTransform: 
 
-D:/Codes_in _CUHKSZ/cpp/csc3050Pro1/_assembler.cpp
-_assembler.h
-D:/Codes_in _CUHKSZ/cpp/csc3050Pro1/_assembler.h
+D:/Codes_in _CUHKSZ/cpp/csc3050Pro1/MIPS_opr.h
 
 D:/Codes_in _CUHKSZ/cpp/csc3050Pro1/_assembler.h
 vector
@@ -25,4 +23,28 @@ sstream
 -
 algorithm
 -
+
+D:/Codes_in _CUHKSZ/cpp/csc3050Pro1/simulator.cpp
+simulator.h
+D:/Codes_in _CUHKSZ/cpp/csc3050Pro1/simulator.h
+MIPS_opr.h
+D:/Codes_in _CUHKSZ/cpp/csc3050Pro1/MIPS_opr.h
+
+D:/Codes_in _CUHKSZ/cpp/csc3050Pro1/simulator.h
+vector
+-
+iostream
+-
+fstream
+-
+stdio.h
+-
+fcntl.h
+-
+unistd.h
+-
+regex
+-
+_assembler.h
+D:/Codes_in _CUHKSZ/cpp/csc3050Pro1/_assembler.h
 

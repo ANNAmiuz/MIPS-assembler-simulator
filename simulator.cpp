@@ -10,83 +10,94 @@ void init_space(uint32_t *&registers, unsigned char *&real_memory, std::vector<I
      * Registers: 33: hi
      */
     registers = new uint32_t[34];
+    registers[0] = 0;
     /*
-     * ----------------- 0x9fffff   real_memory[0x600000-1] end
+     * ----------------- 0xA00000   real_memory[0x600000-1] end
      * | Stack Segment  |
      * -----------------
      * | Dynamic data   |
      * ----------- Data segment
      * | Static data    |
      * ----------------- 0x500000   real_memory[0x100000] start
-     * | Text segment   |
+     * | Text segment
      * ----------------- 0x400000   real_memory[0] start
      */
     real_memory = new unsigned char[0x600000];
     PC = real_memory;
-    registers[28] = get_simulated_address_from(real_memory + 0x100000, real_memory);
-    registers[29] = get_simulated_address_from(real_memory + 0x600000 - 1,real_memory);
+    registers[28] = 0x500000;
+    registers[29] = 0xA00000;
     // store text segment
     for (int i = 0; i < MIPS_binary.size(); i++) {
         Instruction *current = MIPS_binary[i];
-        real_memory[i * 4 + 3] = std::stol(current->machine_code, nullptr, 2) & 0xff000000;
-        real_memory[i * 4 + 2] = std::stol(current->machine_code, nullptr, 2) & 0x00ff0000;
-        real_memory[i * 4 + 1] = std::stol(current->machine_code, nullptr, 2) & 0x0000ff00;
-        real_memory[i * 4 + 0] = std::stol(current->machine_code, nullptr, 2) & 0x000000ff;
+        real_memory[i * 4 + 3] = ((uint32_t) std::stoll(current->machine_code, nullptr, 2) & 0xff000000) >> 24;
+        real_memory[i * 4 + 2] = ((uint32_t) std::stoll(current->machine_code, nullptr, 2) & 0x00ff0000) >> 16;
+        real_memory[i * 4 + 1] = ((uint32_t) std::stoll(current->machine_code, nullptr, 2) & 0x0000ff00) >> 8;
+        real_memory[i * 4 + 0] = (uint32_t) std::stoll(current->machine_code, nullptr, 2) & 0x000000ff;
     }
     //store data segment
     for (int i = 0; i < MIPS_data.size(); i++) {
         std::string cur = MIPS_data[i];
-        std::string target;
         int idx;
-        if (cur.find(".ascii")) {
-            target = cur.substr(cur.find_first_of('"') + 1, cur.find_first_of('"', cur.find_first_of('"') + 1));
+        if (cur.find(".asciiz") != std::string::npos) {
+            cur = std::regex_replace(cur, std::regex(".asciiz"), "");
+            std::string target = string_clear(cur);
+            //std::cout<<target<<std::endl;
             for (int i = 0; i < target.length(); i++) {
-                *get_real_address_from(registers[28],real_memory) = target[i];
+                *get_real_address_from(registers[28], real_memory) = target[i];
+                //std::cout<<(unsigned char)*get_real_address_from(registers[28], real_memory);
                 registers[28] += 1;
             }
-            if (registers[28] != 0)
-                registers[28] += (4 - (registers[28] % 4));
-        } else if (cur.find(".asciiz")) {
-            target = cur.substr(cur.find_first_of('"') + 1, cur.find_first_of('"', cur.find_first_of('"') + 1));
-            for (int i = 0; i < target.length(); i++) {
-                *get_real_address_from(registers[28],real_memory) = target[i];
-                registers[28] += 1;
-            }
-            *get_real_address_from(registers[28],real_memory) = 0x20;
+            *get_real_address_from(registers[28], real_memory) = 0x0;
             registers[28] += 1;
             if (registers[28] != 0)
                 registers[28] += (4 - (registers[28] % 4));
-        } else if (idx = cur.find(".word")) {
-            target = cur.substr(idx + 5);
-            target.erase(target.find_first_not_of(' '));
-            std::vector<std::string> words = split(target, ',');
+        }
+        else if (cur.find(".ascii")!= std::string::npos) {
+            cur = std::regex_replace(cur, std::regex(".ascii"), "");
+            std::string target = string_clear(cur);
+            for (int i = 0; i < target.length(); i++) {
+                *get_real_address_from(registers[28], real_memory) = target[i];
+                registers[28] += 1;
+            }
+            if (registers[28] != 0)
+                registers[28] += (4 - (registers[28] % 4));
+        }  else if (cur.find(".word")!= std::string::npos) {
+            idx = cur.find(".word");
+            cur = cur.substr(idx + 5);
+            cur.erase(0, cur.find_first_not_of(' '));
+            std::vector<std::string> words = tokenizer(cur);
             for (int i = 0; i < words.size(); i++) {
+                //simulator test
                 int32_t w = std::stoi(words[i]);
-                *get_real_address_from(registers[28],real_memory) = w & 0xff;
-                *get_real_address_from(registers[28]+1,real_memory) = w & 0xff00;
-                *get_real_address_from(registers[28]+2,real_memory) = w & 0xff0000;
-                *get_real_address_from(registers[28]+3,real_memory) = w & 0xff000000;
+                *get_real_address_from(registers[28], real_memory) = w & 0xff;
+                *get_real_address_from(registers[28] + 1, real_memory) = (w & 0xff00) >> 8;
+                *get_real_address_from(registers[28] + 2, real_memory) = (w & 0xff0000) >> 16;
+                *get_real_address_from(registers[28] + 3, real_memory) = (w & 0xff000000) >> 24;
                 registers[28] += 4;
             }
-        } else if (idx = cur.find(".byte")) {
-            target = cur.substr(idx + 5);
-            target.erase(target.find_first_not_of(' '));
-            std::vector<std::string> words = split(target, ',');
+        } else if (cur.find(".byte")!= std::string::npos) {
+            idx = cur.find(".byte");
+            cur = cur.substr(idx + 5);
+            cur.erase(0, cur.find_first_not_of(' '));
+            //std::vector<std::string> words = split(cur, ',');
+            std::vector<std::string> words = tokenizer(cur);
             for (int i = 0; i < words.size(); i++) {
                 int32_t w = std::stoi(words[i]);
-                *get_real_address_from(registers[28],real_memory) = w & 0xff;
+                *get_real_address_from(registers[28], real_memory) = w & 0xff;
                 registers[28]++;
             }
             if (registers[28] != 0)
                 registers[28] += (4 - (registers[28] % 4));
-        } else if (idx = cur.find(".half")) {
-            target = cur.substr(idx + 5);
-            target.erase(target.find_first_not_of(' '));
-            std::vector<std::string> words = split(target, ',');
+        } else if (cur.find(".half")!= std::string::npos) {
+            idx = cur.find(".half");
+            cur = cur.substr(idx + 5,cur.length()+1);
+            cur.erase(0, cur.find_first_not_of(' '));
+            //std::vector<std::string> words = split(cur, ',');
+            std::vector<std::string> words = tokenizer(cur);
             for (int i = 0; i < words.size(); i++) {
                 int32_t w = std::stoi(words[i]);
-                *get_real_address_from(registers[28],real_memory) = w & 0xff;
-                *get_real_address_from(registers[28]+1,real_memory) = w % 0xff00;
+                *get_real_address_from(registers[28], real_memory) = w & 0xff;
+                *get_real_address_from(registers[28] + 1, real_memory) = (w % 0xff00)>>8;
                 registers[28] += 2;
             }
             if (registers[28] != 0)
@@ -96,17 +107,15 @@ void init_space(uint32_t *&registers, unsigned char *&real_memory, std::vector<I
 
 }
 
-void pre_distinguish(unsigned char *PC, _instruction &cur) {
-    uint32_t ins =
-            (uint32_t) *PC + ((uint32_t) *(PC + 1) << 8) + ((uint32_t) *(PC + 2) << 16) + ((uint32_t) *(PC + 3) << 24);
-    cur.op = (uint8_t) (ins & 0xfc000000);
+void pre_distinguish(unsigned char *PC, _instruction &cur, uint32_t ins) {
+    cur.op = (uint32_t) ((ins & 0xfc000000) >> 26);
     switch (cur.op) {
         case 0:
             cur.type = 0;
-            cur.rs = (uint32_t) (ins & 0x3e00000);
-            cur.rt = (uint32_t) (ins & 0x1f0000);
-            cur.rd = ((uint32_t) (ins & 0xf800));
-            cur.shamt = (uint32_t) (ins & 0x7c0);
+            cur.rs = (uint32_t) ((ins & 0x3e00000) >> 21);
+            cur.rt = (uint32_t) ((ins & 0x1f0000) >> 16);
+            cur.rd = ((uint32_t) ((ins & 0xf800)) >> 11);
+            cur.shamt = (uint32_t) ((ins & 0x7c0) >> 6);
             cur.funct = (uint32_t) (ins & 0x3f);
             break;
         case 2:
@@ -119,32 +128,35 @@ void pre_distinguish(unsigned char *PC, _instruction &cur) {
             break;
         case 0x1c:
             cur.type = 0;
-            cur.rs = (uint32_t) (ins & 0x3e00000);
-            cur.rt = (uint32_t) (ins & 0x1f0000);
-            cur.rd = ((uint32_t) (ins & 0xf800));
-            cur.shamt = (uint32_t) (ins & 0x7c0);
+            cur.rs = (uint32_t) ((ins & 0x3e00000) >> 21);
+            cur.rt = (uint32_t) ((ins & 0x1f0000) >> 16);
+            cur.rd = ((uint32_t) ((ins & 0xf800)) >> 11);
+            cur.shamt = (uint32_t) ((ins & 0x7c0) >> 6);
             cur.funct = (uint32_t) (ins & 0x3f);
             break;
         default:
             cur.type = 1;
-            cur.rs = (uint32_t) (ins & 0x3e00000);
-            cur.rt = (uint32_t) (ins & 0x1f0000);
+            cur.rs = (uint32_t) ((ins & 0x3e00000) >> 21);
+            cur.rt = (uint32_t) ((ins & 0x1f0000) >> 16);
             cur.imme = (int16_t) (ins & 0x0000ffff);
             break;
     }
-
-
     return;
 }
 
-void perform_code(uint32_t *&registers, unsigned char *&PC, unsigned char *&real_mem) {
+void perform_code(uint32_t *&registers, unsigned char *&PC, unsigned char *&real_mem, std::string input_path,
+                  std::string output_path) {
     _instruction cur;
     std::ifstream input;
     std::ofstream output;
-    input.open("a-plus-b.in");
-    output.open("a-plus-b.out");
-    if (*PC) {
-        pre_distinguish(PC, cur);
+    input.open(input_path);
+    output.open(output_path);
+    while (true) {
+        uint32_t ins =
+                (uint32_t) *PC + ((uint32_t) *(PC + 1) << 8) + ((uint32_t) *(PC + 2) << 16) +
+                ((uint32_t) *(PC + 3) << 24);
+        if (ins == 0) break;
+        pre_distinguish(PC, cur, ins);
         PC += 4;
         switch (cur.type) {
             case 0:
@@ -300,17 +312,18 @@ void perform_code(uint32_t *&registers, unsigned char *&PC, unsigned char *&real
                     case 0xc:
                         switch (registers[2]) {
                             case 1: {
-                                output << (int32_t) registers[4] << std::endl;
+                                output << (int32_t) registers[4];
+                                output.flush();
                                 break;
                             }
                             case 4: {
                                 uint32_t cur = registers[4];
                                 while (true) {
                                     if (*get_real_address_from(cur, real_mem) == '\0') {
-                                        output << std::endl;
                                         break;
                                     }
                                     output << *get_real_address_from(cur, real_mem);
+                                    output.flush();
                                     cur += 1;
                                 }
                                 break;
@@ -346,10 +359,10 @@ void perform_code(uint32_t *&registers, unsigned char *&PC, unsigned char *&real
                                 break;
                             }
                             case 10: {
-                                std::exit(EXIT_FAILURE);
+                                std::exit(EXIT_SUCCESS);
                             }
                             case 11: {
-                                output << (unsigned char) (registers[4] & 0xff) << std::endl;
+                                output << (unsigned char) (registers[4] & 0xff);
                                 break;
                             }
                             case 12: {
@@ -419,23 +432,8 @@ void perform_code(uint32_t *&registers, unsigned char *&PC, unsigned char *&real
                             }
                             case 15: {
                                 int32_t fd = (int32_t) registers[4];
-                                if (fd < 0) {
-                                    registers[4] = -1;
-                                    break;
-                                } else if (fd == 0) {
-                                    registers[4] = 0;
-                                    break;
-                                } else {
-                                    uint32_t fake_address = registers[5];
-                                    uint32_t max_bytes = registers[6];
-                                    uint32_t res = 0;
-                                    while ((*get_real_address_from(fake_address, real_mem)) != (int) EOF) {
-                                        res += 1;
-                                        if (res == max_bytes) break;
-                                    }
-                                    registers[4] = res;
-                                    break;
-                                }
+                                registers[2]=write(fd,get_real_address_from(registers[5],real_mem),registers[6]);
+                                break;
                             }
                             case 16: {
                                 int res = close((int32_t) registers[4]);
@@ -460,7 +458,7 @@ void perform_code(uint32_t *&registers, unsigned char *&PC, unsigned char *&real
                         _andi(registers, cur.rs, cur.rt, cur.imme);
                         break;
                     case 0xd:
-                        _ori(registers, cur.rs, cur.rt, cur.imme);
+                        _ori(registers, cur.rs, cur.rt, (uint16_t)cur.imme);
                         break;
                     case 0xe:
                         _xori(registers, cur.rs, cur.rt, cur.imme);
@@ -572,12 +570,60 @@ void perform_code(uint32_t *&registers, unsigned char *&PC, unsigned char *&real
                         _j(cur.target, PC, real_mem);
                         break;
                     case 3:
-                        _jal(cur.target, PC, registers, real_mem);
+                        _jal((int32_t) cur.target, PC, registers, real_mem);
                         break;
                 }
                 break;
         }
-        input.close();
-        output.close();
     }
+    input.close();
+    output.close();
+}
+
+std::string string_clear(std::string str) {
+    std::string res;
+    int idx1;
+    int idx2;
+    for (int i = 0; i < str.length(); i++) {
+        if (str[i] == '"'){
+            idx1 = i;
+            break;
+        }
+    }
+    res = str.substr(idx1+1);
+    for (int i = 0; i < res.length();i++){
+        if (res[i] == 92){
+            // '\n'
+            if (res[i+1] == 110){
+                res[i] = 10;
+                res = res.substr(0,i+1)+res.substr(i+2);
+            }
+            // '\0'
+            else if(res[i+1] == 48){
+                res[i] = 0;
+                res = res.substr(0,i+1)+res.substr(i+2);
+            }
+            // '\t'
+            else if (res[i+1] == 116){
+                res[i] = 9;
+                res = res.substr(0,i+1)+res.substr(i+2);
+            }
+            // '\\'
+            else if (res[i+1] == 92){
+                res = res.substr(0,i+1)+res.substr(i+2);
+            }
+            // '\"'
+            else if (res[i+1] == 34){
+                res[i] = 34;
+                res = res.substr(0,i+1)+res.substr(i+2);
+            }
+        }
+    }
+    for (int i = res.length(); i > 0; i--){
+        if (res[i] == 34){
+            idx2 = i;
+            break;
+        }
+    }
+    return res.substr(0,idx2);
 }

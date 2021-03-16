@@ -30,7 +30,7 @@ void _add(uint32_t *&registers, uint32_t rs, uint32_t rt, uint32_t rd) {
             std::exit(EXIT_FAILURE);
         }
     }
-    registers[rd] = (uint32_t) (res);
+    registers[rd] = (uint32_t) res;
 }
 
 void _addu(uint32_t *&registers, uint32_t rs, uint32_t rt, uint32_t rd) {
@@ -38,6 +38,7 @@ void _addu(uint32_t *&registers, uint32_t rs, uint32_t rt, uint32_t rd) {
 }
 
 void _addi(uint32_t *&registers, uint32_t rs, uint32_t rt, int16_t i) {
+    //std::cout<<(int32_t) registers[rs]<<"+" <<(int32_t) i;
     int32_t res = (int32_t) registers[rs] + (int32_t) i;
     if (((0x80000000 & registers[rs]) == (0x80000000 & (int32_t) i)) &&
         ((0x80000000 & registers[rs]) != (0x80000000 & res))) {
@@ -45,10 +46,11 @@ void _addi(uint32_t *&registers, uint32_t rs, uint32_t rt, int16_t i) {
         std::exit(EXIT_FAILURE);
     }
     registers[rt] = (uint32_t) res;
+    //std::cout<<"="<<registers[rt]<<std::endl;
 }
 
-void _addiu(uint32_t *&registers, uint32_t rs, uint32_t rt, uint16_t i) {
-    registers[rt] = registers[rs] + (uint32_t) i;
+void _addiu(uint32_t *&registers, uint32_t rs, uint32_t rt, int16_t i) {
+    registers[rt] = registers[rs] + ((int32_t) i);
 }
 
 void _and(uint32_t *&registers, uint32_t rs, uint32_t rt, uint32_t rd) {
@@ -155,8 +157,7 @@ void _or(uint32_t *&registers, uint32_t rs, uint32_t rt, uint32_t rd) {
 }
 
 void _ori(uint32_t *&registers, uint32_t rs, uint32_t rt, uint16_t i) {
-    registers[rt] = registers[rs] | (uint32_t) i;
-}
+    registers[rt] = registers[rs] | (uint32_t) i;}
 
 void _sll(uint32_t *&registers, uint32_t rd, uint32_t rt, uint32_t shamt) {
     registers[rd] = registers[rt] << shamt;
@@ -219,8 +220,7 @@ void _xori(uint32_t *&registers, uint32_t rs, uint32_t rt, uint16_t i) {
 
 void _lui(uint32_t *&registers, uint32_t rt, uint16_t i) {
     uint32_t x = (uint32_t) i;
-    registers[rt] = (uint32_t) (x << 16);
-    return;
+    registers[rt] = (uint32_t) (x << 16);return;
 }
 
 void _slt(uint32_t *&registers, uint32_t rs, uint32_t rt, uint32_t rd) {
@@ -242,7 +242,7 @@ void _slti(uint32_t *&registers, uint32_t rs, uint32_t rt, int16_t i) {
 }
 
 void _sltiu(uint32_t *&registers, uint32_t rs, uint32_t rt, uint16_t i) {
-    if (registers[rs] < (uint32_t) i) registers[rt] = 1;
+    if (registers[rs] < (uint32_t) ((int32_t) i)) registers[rt] = 1;
     else registers[rt] = 0;
     return;
 }
@@ -271,7 +271,9 @@ void _bgtz(uint32_t *&registers, uint32_t rs, int16_t offset, unsigned char *&PC
 }
 
 void _blez(uint32_t *&registers, uint32_t rs, int16_t offset, unsigned char *&PC) {
-    if ((int32_t) registers[rs] <= 0) branch(PC, offset);
+    if (((int32_t) registers[rs]) <= 0) {
+        branch(PC, offset);
+    }
     return;
 }
 
@@ -313,7 +315,9 @@ void _j(uint32_t target, unsigned char *&PC, unsigned char *&real_memory) {
 
 void _jal(uint32_t target, unsigned char *&PC, uint32_t *&registers, unsigned char *&real_memory) {
     registers[31] = get_simulated_address_from(PC, real_memory);
-    int32_t fake_address = ((int32_t) (get_simulated_address_from(PC, real_memory)) & 0xf0000000) + (target << 2);
+    //std::cout<<"Jal set $ra to be:"<<std::hex<<registers[31]<<std::endl;
+    int32_t fake_address =
+            ((int32_t) (get_simulated_address_from(PC, real_memory)) & 0xf0000000) + ((int32_t) target << 2);
     PC = get_real_address_from(fake_address, real_memory);
     return;
 }
@@ -389,8 +393,8 @@ void _tgei(uint32_t *&registers, uint32_t rs, int16_t i) {
     return;
 }
 
-void _tgeiu(uint32_t *&registers, uint32_t rs, uint16_t i) {
-    if (registers[rs] >= (uint32_t) i) {
+void _tgeiu(uint32_t *&registers, uint32_t rs, int16_t i) {
+    if (registers[rs] >= (uint32_t) ((int32_t) i)) {
         //throw "GREATER / EQUAL";
         std::cout << "rs >= immediate";
         std::exit(EXIT_FAILURE);
@@ -422,8 +426,8 @@ void _tlti(uint32_t *&registers, uint32_t rs, int16_t i) {
     }
 }
 
-void _tltiu(uint32_t *&registers, uint32_t rs, uint16_t i) {
-    if ((uint32_t) (registers[rs]) < (uint32_t) i) {
+void _tltiu(uint32_t *&registers, uint32_t rs, int16_t i) {
+    if ((uint32_t) (registers[rs]) < (uint32_t) ((int32_t) i)) {
         //throw "LESS THAN";
         std::cout << "rs < immediate";
         std::exit(EXIT_FAILURE);
@@ -488,22 +492,22 @@ void _lwl(uint32_t *&registers, uint32_t rs, uint32_t rt, int16_t offset, unsign
     uint32_t res = 0;
     switch (fake_address % 4) {
         case 0:
-            res += ((uint32_t) *get_real_address_from(fake_address, real_memory)) << 24;
-            registers[rt] = registers[rt] & 0xffffff + res;
+            res = ((uint32_t) *get_real_address_from(fake_address, real_memory)) << 24;
+            registers[rt] = (registers[rt] & 0x00ffffff) + res;
             break;
         case 1:
-            res = res + (((uint32_t) *get_real_address_from(fake_address, real_memory)) << 24) +
+            res = (((uint32_t) *get_real_address_from(fake_address, real_memory)) << 24) +
                   (((uint32_t) *get_real_address_from(fake_address - 1, real_memory)) << 16);
-            registers[rt] = registers[rt] & 0xffff + res;
+            registers[rt] = (registers[rt] & 0xffff) + res;
             break;
         case 2:
-            res = res + (((uint32_t) *get_real_address_from(fake_address, real_memory)) << 24) +
+            res = (((uint32_t) *get_real_address_from(fake_address, real_memory)) << 24) +
                   (((uint32_t) *get_real_address_from(fake_address - 1, real_memory)) << 16) +
                   (((uint32_t) *get_real_address_from(fake_address - 2, real_memory)) << 8);
-            registers[rt] = registers[rt] & 0xff + res;
+            registers[rt] = (registers[rt] & 0xff) + res;
             break;
         case 3:
-            res = res + (((uint32_t) *get_real_address_from(fake_address, real_memory)) << 24) +
+            res = (((uint32_t) *get_real_address_from(fake_address, real_memory)) << 24) +
                   (((uint32_t) *get_real_address_from(fake_address - 1, real_memory)) << 16) +
                   (((uint32_t) *get_real_address_from(fake_address - 2, real_memory)) << 8) +
                   ((uint32_t) *get_real_address_from(fake_address - 3, real_memory));
@@ -514,29 +518,29 @@ void _lwl(uint32_t *&registers, uint32_t rs, uint32_t rt, int16_t offset, unsign
 
 void _lwr(uint32_t *&registers, uint32_t rs, uint32_t rt, int16_t offset, unsigned char *&real_memory) {
     uint32_t fake_address = (int32_t) registers[rs] + (int32_t) offset;
-    uint32_t res;
+    uint32_t res = 0;
     switch (fake_address % 4) {
         case 0:
-            res = res + (((uint32_t) *get_real_address_from(fake_address + 3, real_memory)) << 24) +
+            res = (((uint32_t) *get_real_address_from(fake_address + 3, real_memory)) << 24) +
                   (((uint32_t) *get_real_address_from(fake_address + 2, real_memory)) << 16) +
                   (((uint32_t) *get_real_address_from(fake_address + 1, real_memory)) << 8) +
                   ((uint32_t) *get_real_address_from(fake_address, real_memory));
             registers[rt] = res;
             break;
         case 1:
-            res = res + (((uint32_t) *get_real_address_from(fake_address + 2, real_memory)) << 16) +
+            res = (((uint32_t) *get_real_address_from(fake_address + 2, real_memory)) << 16) +
                   (((uint32_t) *get_real_address_from(fake_address + 1, real_memory)) << 8) +
                   ((uint32_t) *get_real_address_from(fake_address, real_memory));
-            registers[rt] = registers[rt] & 0xff000000 + res;
+            registers[rt] = (registers[rt] & 0xff000000) + res;
             break;
         case 2:
-            res = res + (((uint32_t) *get_real_address_from(fake_address + 1, real_memory)) << 8) +
+            res = (((uint32_t) *get_real_address_from(fake_address + 1, real_memory)) << 8) +
                   ((uint32_t) *get_real_address_from(fake_address, real_memory));
-            registers[rt] = registers[rt] & 0xffff0000 + res;
+            registers[rt] = (registers[rt] & 0xffff0000) + res;
             break;
         case 3:
-            res += ((uint32_t) *get_real_address_from(fake_address, real_memory));
-            registers[rt] = registers[rt] & 0xffffff00 + res;
+            res = ((uint32_t) *get_real_address_from(fake_address, real_memory));
+            registers[rt] = (registers[rt] & 0xffffff00) + res;
             break;
 
     }
@@ -568,7 +572,7 @@ void _sh(uint32_t *&registers, uint32_t rs, uint32_t rt, int16_t offset, unsigne
         throw "not aligned";
     }
     *get_real_address_from(fake_address, real_memory) = (uint8_t) (registers[rt] & 0xff);
-    *get_real_address_from(fake_address + 1, real_memory) = (uint8_t) (registers[rt] & 0xff00);
+    *get_real_address_from(fake_address + 1, real_memory) = (uint8_t) ((registers[rt] & 0xff00) >> 8);
     return;
 }
 
@@ -577,9 +581,9 @@ void _sw(uint32_t *&registers, uint32_t rs, uint32_t rt, int16_t offset, unsigne
     if (fake_address & 3 != 0) {
         throw "not aligned";
     }
-    *get_real_address_from(fake_address + 3, real_memory) = (uint8_t) (registers[rt] & 0xff000000);
-    *get_real_address_from(fake_address + 2, real_memory) = (uint8_t) (registers[rt] & 0xff0000);
-    *get_real_address_from(fake_address + 1, real_memory) = (uint8_t) (registers[rt] & 0xff00);
+    *get_real_address_from(fake_address + 3, real_memory) = (uint8_t) ((registers[rt] & 0xff000000) >> 24);
+    *get_real_address_from(fake_address + 2, real_memory) = (uint8_t) ((registers[rt] & 0xff0000) >> 16);
+    *get_real_address_from(fake_address + 1, real_memory) = (uint8_t) ((registers[rt] & 0xff00) >> 8);
     *get_real_address_from(fake_address, real_memory) = (uint8_t) (registers[rt] & 0xff);
     return;
 }
@@ -588,22 +592,22 @@ void _swl(uint32_t *&registers, uint32_t rs, uint32_t rt, int16_t offset, unsign
     uint32_t fake_address = (int32_t) registers[rs] + (int32_t) offset;
     switch (fake_address % 4) {
         case 3:
-            *get_real_address_from(fake_address, real_memory) = registers[rt] & 0xff000000;
-            *get_real_address_from(fake_address - 1, real_memory) = registers[rt] & 0xff0000;
-            *get_real_address_from(fake_address - 2, real_memory) = registers[rt] & 0xff00;
-            *get_real_address_from(fake_address - 3, real_memory) = registers[rt] & 0xff;
+            *get_real_address_from(fake_address, real_memory) = ((registers[rt] & 0xff000000) >> 24);
+            *get_real_address_from(fake_address - 1, real_memory) = ((registers[rt] & 0xff0000) >> 16);
+            *get_real_address_from(fake_address - 2, real_memory) = ((registers[rt] & 0xff00) >> 8);
+            *get_real_address_from(fake_address - 3, real_memory) = (registers[rt] & 0xff);
             break;
         case 2:
-            *get_real_address_from(fake_address, real_memory) = registers[rt] & 0xff000000;
-            *get_real_address_from(fake_address - 1, real_memory) = registers[rt] & 0xff0000;
-            *get_real_address_from(fake_address - 2, real_memory) = registers[rt] & 0xff00;
+            *get_real_address_from(fake_address, real_memory) = ((registers[rt] & 0xff000000) >> 24);
+            *get_real_address_from(fake_address - 1, real_memory) = ((registers[rt] & 0xff0000) >> 16);
+            *get_real_address_from(fake_address - 2, real_memory) = ((registers[rt] & 0xff00) >> 8);
             break;
         case 1:
-            *get_real_address_from(fake_address, real_memory) = registers[rt] & 0xff000000;
-            *get_real_address_from(fake_address - 1, real_memory) = registers[rt] & 0xff0000;
+            *get_real_address_from(fake_address, real_memory) = ((registers[rt] & 0xff000000) >> 24);
+            *get_real_address_from(fake_address - 1, real_memory) = ((registers[rt] & 0xff0000) >> 16);
             break;
         case 0:
-            *get_real_address_from(fake_address, real_memory) = registers[rt] & 0xff000000;
+            *get_real_address_from(fake_address, real_memory) = ((registers[rt] & 0xff000000) >> 24);
             break;
     }
     return;
@@ -617,18 +621,18 @@ void _swr(uint32_t *&registers, uint32_t rs, uint32_t rt, int16_t offset, unsign
             break;
         case 2:
             *get_real_address_from(fake_address, real_memory) = registers[rt] & 0xff;
-            *get_real_address_from(fake_address + 1, real_memory) = registers[rt] & 0xff00;
+            *get_real_address_from(fake_address + 1, real_memory) = (registers[rt] & 0xff00) >> 8;
             break;
         case 1:
             *get_real_address_from(fake_address, real_memory) = registers[rt] & 0xff;
-            *get_real_address_from(fake_address + 1, real_memory) = registers[rt] & 0xff00;
-            *get_real_address_from(fake_address + 2, real_memory) = registers[rt] & 0xff0000;
+            *get_real_address_from(fake_address + 1, real_memory) = (registers[rt] & 0xff00) >> 8;
+            *get_real_address_from(fake_address + 2, real_memory) = (registers[rt] & 0xff0000) >> 16;
             break;
         case 0:
             *get_real_address_from(fake_address, real_memory) = registers[rt] & 0xff;
-            *get_real_address_from(fake_address + 1, real_memory) = registers[rt] & 0xff00;
-            *get_real_address_from(fake_address + 2, real_memory) = registers[rt] & 0xff0000;
-            *get_real_address_from(fake_address + 3, real_memory) = registers[rt] & 0xff000000;
+            *get_real_address_from(fake_address + 1, real_memory) = (registers[rt] & 0xff00) >> 8;
+            *get_real_address_from(fake_address + 2, real_memory) = (registers[rt] & 0xff0000) >> 16;
+            *get_real_address_from(fake_address + 3, real_memory) = (registers[rt] & 0xff000000) >> 24;
             break;
     }
     return;
@@ -639,9 +643,9 @@ void _sc(uint32_t *&registers, uint32_t rs, uint32_t rt, int16_t offset, unsigne
     if (fake_address & 3 != 0) {
         throw "not aligned";
     }
-    *get_real_address_from(fake_address + 3, real_memory) = (uint8_t) (registers[rt] & 0xff000000);
-    *get_real_address_from(fake_address + 2, real_memory) = (uint8_t) (registers[rt] & 0xff0000);
-    *get_real_address_from(fake_address + 1, real_memory) = (uint8_t) (registers[rt] & 0xff00);
+    *get_real_address_from(fake_address + 3, real_memory) = (uint8_t) ((registers[rt] & 0xff000000) >> 24);
+    *get_real_address_from(fake_address + 2, real_memory) = (uint8_t) ((registers[rt] & 0xff0000) >> 16);
+    *get_real_address_from(fake_address + 1, real_memory) = (uint8_t) ((registers[rt] & 0xff00) >> 8);
     *get_real_address_from(fake_address, real_memory) = (uint8_t) (registers[rt] & 0xff);
     return;
 }
@@ -665,5 +669,6 @@ void _mtlo(uint32_t *&registers, uint32_t rs) {
     registers[32] = registers[rs];
     return;
 }
+
 
 #endif //CSC3050PRO1_MIPS_OPR_H

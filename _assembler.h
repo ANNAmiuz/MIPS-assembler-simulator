@@ -134,6 +134,7 @@ void translate(std::string instruction, int PC, std::map<std::string, Operation>
 void scan_process(std::map<std::string, Operation> opr_map, std::map<std::string, uint32_t> reg_map,
                   std::map<std::string, unsigned int> &symbol_table, std::vector<Instruction *> &MIPS_binary,
                   std::vector<std::string> &MIPS_data,
-                  uint32_t base_address);
+                  uint32_t base_address, std::string _asm);
 
+void test(std::string out, std::vector<Instruction *> &MIPS_binary);
 #endif //CSC3050PRO1__ASSEMBLER_H

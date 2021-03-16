@@ -7,6 +7,7 @@
 #include<stdio.h>
 #include<fcntl.h>
 #include <unistd.h>
+#include <regex>
 #include "_assembler.h"
 
 /*
@@ -43,9 +44,13 @@ struct _instruction {
 };
 
 //distinguish codes from binary to _instruction type
-void pre_distinguish(unsigned char *PC, _instruction &cur);
+void pre_distinguish(unsigned char *PC, _instruction &cur, uint32_t ins);
 
 //actual perform of MIPS codes
-void perform_code(uint32_t *&registers, unsigned char *&PC, unsigned char *&real_mem);
+void perform_code(uint32_t *&registers, unsigned char *&PC, unsigned char *&real_mem, std::string
+input_path, std::string output_path);
+
+//deal with \" \' \t....in the input string
+std::string string_clear(std::string str);
 
 #endif //CSC3050PRO1_SIMULATOR_H
