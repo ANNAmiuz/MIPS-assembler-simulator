@@ -176,11 +176,11 @@ void scan_process(std::map<std::string, Operation> opr_map, std::map<std::string
         if (current.find("#") != std::string::npos)
             current.erase(current.find("#"), current.length() + 1);
         if (!current.empty()) {
-            if (current == ".data") {
+            if (current.find(".data") != std::string::npos) {
                 data_flag = 1;
                 text_flag = 0;
                 continue;
-            } else if (current == ".text") {
+            } else if (current.find(".text") != std::string::npos) {
                 data_flag = 0;
                 text_flag = 1;
                 continue;

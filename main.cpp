@@ -5,7 +5,7 @@
 
 int main(int argc, char* argv[]) {
     //change for test
-    std::string asm_path = "memcpy-hello-world.asm";
+    std::string asm_path = "mini_grader.asm";
     std::string input_path = "memcpy-hello-world.in";
     std::string out_path = "memcpy-hello-world.out";
     //std::string asm_path = std::string(argv[1]);

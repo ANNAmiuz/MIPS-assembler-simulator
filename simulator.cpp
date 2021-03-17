@@ -51,9 +51,16 @@ void init_space(uint32_t *&registers, unsigned char *&real_memory, std::vector<I
                 //std::cout<<(unsigned char)*get_real_address_from(registers[28], real_memory);
                 registers[28] += 1;
             }
+            int s = registers[28] - target.length();
+            //std::cout<<std::hex<<s<<":";
+            //for (int i = 0; i < target.length(); i++) {
+                //std::cout<<*get_real_address_from(s, real_memory);
+                //std::cout<<(unsigned char)*get_real_address_from(registers[28], real_memory);
+                //s += 1;
+            //}
             *get_real_address_from(registers[28], real_memory) = 0x0;
             registers[28] += 1;
-            if (registers[28]&3 != 0)
+            if ((registers[28]&3) != 0)
                 registers[28] += (4 - (registers[28] % 4));
         }
         else if (cur.find(".ascii")!= std::string::npos) {
@@ -63,7 +70,7 @@ void init_space(uint32_t *&registers, unsigned char *&real_memory, std::vector<I
                 *get_real_address_from(registers[28], real_memory) = target[i];
                 registers[28] += 1;
             }
-            if (registers[28]&3 != 0)
+            if ((registers[28]&3) != 0)
                 registers[28] += (4 - (registers[28] % 4));
         }  else if (cur.find(".word")!= std::string::npos) {
             idx = cur.find(".word");
@@ -90,7 +97,7 @@ void init_space(uint32_t *&registers, unsigned char *&real_memory, std::vector<I
                 *get_real_address_from(registers[28], real_memory) = w & 0xff;
                 registers[28]++;
             }
-            if (registers[28] != 0)
+            if ((registers[28]&3)!= 0)
                 registers[28] += (4 - (registers[28] % 4));
         } else if (cur.find(".half")!= std::string::npos) {
             idx = cur.find(".half");
@@ -104,7 +111,7 @@ void init_space(uint32_t *&registers, unsigned char *&real_memory, std::vector<I
                 *get_real_address_from(registers[28] + 1, real_memory) = (w % 0xff00)>>8;
                 registers[28] += 2;
             }
-            if (registers[28] != 0)
+            if ((registers[28]&3) != 0)
                 registers[28] += (4 - (registers[28] % 4));
         }
     }
