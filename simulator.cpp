@@ -53,7 +53,7 @@ void init_space(uint32_t *&registers, unsigned char *&real_memory, std::vector<I
             }
             *get_real_address_from(registers[28], real_memory) = 0x0;
             registers[28] += 1;
-            if (registers[28] != 0)
+            if (registers[28]&3 != 0)
                 registers[28] += (4 - (registers[28] % 4));
         }
         else if (cur.find(".ascii")!= std::string::npos) {
@@ -63,7 +63,7 @@ void init_space(uint32_t *&registers, unsigned char *&real_memory, std::vector<I
                 *get_real_address_from(registers[28], real_memory) = target[i];
                 registers[28] += 1;
             }
-            if (registers[28] != 0)
+            if (registers[28]&3 != 0)
                 registers[28] += (4 - (registers[28] % 4));
         }  else if (cur.find(".word")!= std::string::npos) {
             idx = cur.find(".word");

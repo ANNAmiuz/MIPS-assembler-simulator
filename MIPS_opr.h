@@ -258,8 +258,9 @@ void _bgez(uint32_t *&registers, uint32_t rs, int16_t offset, unsigned char *&PC
 
 void _bgezal(uint32_t *&registers, uint32_t rs, int16_t offset, unsigned char *&PC, unsigned char *&real_memory) {
     if ((int32_t) registers[rs] >= 0) {
-        branch(PC, offset);
         registers[31] = get_simulated_address_from(PC, real_memory);
+        branch(PC, offset);
+
     }
     return;
 }
@@ -278,8 +279,8 @@ void _blez(uint32_t *&registers, uint32_t rs, int16_t offset, unsigned char *&PC
 
 void _blezal(uint32_t *&registers, uint32_t rs, int16_t offset, unsigned char *&PC, unsigned char *&real_memory) {
     if ((int32_t) registers[rs] <= 0) {
-        branch(PC, offset);
         registers[31] = get_simulated_address_from(PC, real_memory);
+        branch(PC, offset);
     }
     return;
 }
@@ -293,8 +294,8 @@ void _bltz(uint32_t *&registers, uint32_t rs, int16_t offset, unsigned char *&PC
 
 void _bltzal(uint32_t *&registers, uint32_t rs, int16_t offset, unsigned char *&PC, unsigned char *&real_memory) {
     if ((int32_t) registers[rs] < 0) {
-        branch(PC, offset);
         registers[31] = get_simulated_address_from(PC, real_memory);
+        branch(PC, offset);
     }
     return;
 }
@@ -683,9 +684,9 @@ void _syscall(uint32_t *&registers, std::ifstream &input, std::ofstream &output,
             break;
         }
         case 5: {
-            std::string res;
-            std::getline(input, res);
-            registers[2] = (uint32_t) (std::stoi(res, nullptr, 0));
+            int res;
+            input>>res;
+            registers[2] = (uint32_t)res;
             break;
         }
         case 8: {

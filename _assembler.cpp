@@ -4,7 +4,6 @@ bool is_alldigit(const std::string &str) {
     return std::all_of(str.begin(), str.end(), ::isdigit);
 }
 
-//1 from 2
 std::vector<std::string> tokenizer(std::string text) {
     std::replace(text.begin(), text.end(), ',', ' ');
     std::vector<std::string> results;
@@ -1028,9 +1027,6 @@ void translate(std::string instruction, int PC, std::map<std::string, Operation>
             break;
     }
     MIPS_binary.push_back(cur);
-
-    //a&s
-    //std::cout << cur->machine_code << std::endl;
 }
 
 

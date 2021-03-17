@@ -17,7 +17,7 @@
 */
 
 /*
-* ----------------- 0x9fffff   real_memory[0x600000-1] end
+* ----------------- 0xA000000  real_memory[0x600000-1] end
 * | Stack Segment  |
 * -----------------
 * | Dynamic data   |
