@@ -156,10 +156,11 @@ void _or(uint32_t *&registers, uint32_t rs, uint32_t rt, uint32_t rd) {
 }
 
 void _ori(uint32_t *&registers, uint32_t rs, uint32_t rt, uint16_t i) {
-    registers[rt] = registers[rs] | (uint32_t) i;}
+    registers[rt] = registers[rs] | (uint32_t) i;
+}
 
 void _sll(uint32_t *&registers, uint32_t rd, uint32_t rt, uint32_t shamt) {
-    registers[rd] = registers[rt] << shamt;
+    registers[rd] = (registers[rt] << shamt);
     return;
 }
 
@@ -219,7 +220,8 @@ void _xori(uint32_t *&registers, uint32_t rs, uint32_t rt, uint16_t i) {
 
 void _lui(uint32_t *&registers, uint32_t rt, uint16_t i) {
     uint32_t x = (uint32_t) i;
-    registers[rt] = (uint32_t) (x << 16);return;
+    registers[rt] = (uint32_t) (x << 16);
+    return;
 }
 
 void _slt(uint32_t *&registers, uint32_t rs, uint32_t rt, uint32_t rd) {
@@ -664,7 +666,8 @@ void _mtlo(uint32_t *&registers, uint32_t rs) {
     return;
 }
 
-void _syscall(uint32_t *&registers, std::ifstream &input, std::ofstream &output, unsigned char * real_mem, unsigned char * &heap){
+void _syscall(uint32_t *&registers, std::ifstream &input, std::ofstream &output, unsigned char *real_mem,
+              unsigned char *&heap) {
     switch (registers[2]) {
         case 1: {
             output << (int32_t) registers[4];
@@ -685,8 +688,8 @@ void _syscall(uint32_t *&registers, std::ifstream &input, std::ofstream &output,
         }
         case 5: {
             int res;
-            input>>res;
-            registers[2] = (uint32_t)res;
+            input >> res;
+            registers[2] = (uint32_t) res;
             break;
         }
         case 8: {
@@ -718,22 +721,18 @@ void _syscall(uint32_t *&registers, std::ifstream &input, std::ofstream &output,
         }
         case 11: {
             output << (unsigned char) (registers[4] & 0xff);
+            output.flush();
             break;
         }
         case 12: {
-            std::string res;
-            std::getline(input, res);
-            if (is_alldigit(res)) {
-                registers[2] = std::stoi(res, nullptr, 0);
-                break;
-            } else {
-                registers[2] = (unsigned char) res[0];
-                break;
-            }
+            char res;
+            input >> res;
+            registers[2] = (unsigned char) res;
+            break;
         }
         case 13: {
             unsigned char *cur = get_real_address_from(registers[4], real_mem);
-            char* filename;
+            char *filename;
             while (true) {
                 if (*cur == '\0') {
                     break;
@@ -741,15 +740,15 @@ void _syscall(uint32_t *&registers, std::ifstream &input, std::ofstream &output,
                     filename += *cur;
                 }
             }
-            registers[2] = open(filename,registers[5],registers[6]);
+            registers[2] = open(filename, registers[5], registers[6]);
             break;
         }
         case 14: {
-            registers[2] = read(registers[4],get_real_address_from(registers[5],real_mem),registers[6]);
+            registers[2] = read(registers[4], get_real_address_from(registers[5], real_mem), registers[6]);
             break;
         }
         case 15: {
-            registers[2]=write(registers[4],get_real_address_from(registers[5],real_mem),registers[6]);
+            registers[2] = write(registers[4], get_real_address_from(registers[5], real_mem), registers[6]);
             break;
         }
         case 16: {

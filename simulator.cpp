@@ -173,6 +173,8 @@ void perform_code(uint32_t *&registers, unsigned char *&PC, unsigned char *&real
         PC += 4;
         switch (cur.type) {
             case 0:
+                //std::cout<<"rs:"<<cur.rs<<std::endl;
+                //std::cout<<"rt:"<<cur.rt<<std::endl;
                 switch (cur.funct) {
                     case 0x20:
                         switch (cur.op) {
@@ -215,7 +217,7 @@ void perform_code(uint32_t *&registers, unsigned char *&PC, unsigned char *&real
                                 _mul(registers, cur.rs, cur.rt, cur.rd);
                                 break;
                             case 0:
-                                _srl(registers, cur.rs, cur.rt, cur.shamt);
+                                _srl(registers, cur.rd, cur.rt, cur.shamt);
                                 break;
 
                         }
@@ -226,7 +228,7 @@ void perform_code(uint32_t *&registers, unsigned char *&PC, unsigned char *&real
                                 _madd(registers, cur.rs, cur.rt);
                                 break;
                             case 0:
-                                _sll(registers, cur.rs, cur.rt, cur.shamt);
+                                _sll(registers, cur.rd, cur.rt, cur.shamt);
                                 break;
                         }
                         break;
@@ -263,7 +265,7 @@ void perform_code(uint32_t *&registers, unsigned char *&PC, unsigned char *&real
                         _or(registers, cur.rs, cur.rt, cur.rd);
                         break;
                     case 3:
-                        _sra(registers, cur.rs, cur.rt, cur.shamt);
+                        _sra(registers, cur.rd, cur.rt, cur.shamt);
                         break;
                     case 7:
                         _srav(registers, cur.rs, cur.rt, cur.rd);
@@ -327,6 +329,9 @@ void perform_code(uint32_t *&registers, unsigned char *&PC, unsigned char *&real
                         break;
                 }
             case 1:
+                //std::cout<<"rs:"<<cur.rs<<std::endl;
+                //std::cout<<"rt:"<<cur.rt<<std::endl;
+                //std::cout<<"i:"<<cur.imme<<std::endl;
                 switch (cur.op) {
                     case 8:
                         _addi(registers, cur.rs, cur.rt, cur.imme,output);
