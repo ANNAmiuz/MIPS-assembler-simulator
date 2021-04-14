@@ -1,5 +1,6 @@
 # MIPS Assembler Simulator
 
+##  Notice: only support some of the MIPS instructions!
 ##  If possible, merge the two struct (Instruction & _instruction) to deal with the redundancy. 
 
 ### Introduction
