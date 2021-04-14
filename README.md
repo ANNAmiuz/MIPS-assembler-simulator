@@ -1,6 +1,4 @@
-Student ID: 119010114                    Name: Huang Yingyi                    Course: CSC3050                    Date: 2021.03.20
-
-# CSC3050 PROJECT1
+# MIPS Assembler Simulator
 
 ### Introduction
 
