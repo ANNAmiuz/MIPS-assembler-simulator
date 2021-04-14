@@ -1,5 +1,7 @@
 # MIPS Assembler Simulator
 
+##  If possible, merge the two struct (Instruction & _instruction) to deal with the redundancy. 
+
 ### Introduction
 
 ​		This report shows the method to run the codes, the general ideas to implement assembler and simulator, some details and tricks in implementation and the method I used for testing my code.
